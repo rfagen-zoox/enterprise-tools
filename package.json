@@ -1,0 +1,40 @@
+{
+  "name": "reviewable-enterprise-tools",
+  "version": "0.1.0",
+  "description": "Admin tools for Reviewable Enterprise",
+  "bin": {
+    "rotate_rsa_key": "./rotate_rsa_key.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": "4.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/reviewable/enterprise-tools.git"
+  },
+  "keywords": [
+    "firebase",
+    "encryption",
+    "reviewable"
+  ],
+  "author": "Piotr Kaminski <piotr@ideanest.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/reviewable/enterprise-tools/issues"
+  },
+  "homepage": "https://github.com/reviewable/enterprise-tools#readme",
+  "dependencies": {
+    "agentkeepalive": "^2.2.0",
+    "async-co": "^1.1.0",
+    "co": "^4.6.0",
+    "lodash": "^4.15.0",
+    "ms": "^0.7.1",
+    "nodefire": "^0.6.2",
+    "pace": "0.0.4",
+    "request": "^2.74.0",
+    "serialized-lru-cache": "^3.1.0"
+  }
+}
