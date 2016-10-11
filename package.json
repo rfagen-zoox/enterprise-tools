@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
     "rotate_rsa_key": "./rotate_rsa_key.js"
@@ -32,6 +32,7 @@
     "co": "^4.6.0",
     "lodash": "^4.15.0",
     "ms": "^0.7.1",
+    "node-forge": "^0.6.43",
     "nodefire": "^0.6.2",
     "pace": "0.0.4",
     "request": "^2.74.0",
