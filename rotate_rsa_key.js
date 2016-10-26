@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+global.Promise = require('bluebird');
+Promise.co = require('bluebird-co').co;
 const _ = require('lodash');
-const co = require('co');
 const constants = require('constants');
 const crypto = require('crypto');
 const eachLimit = require('async-co/eachLimit');
@@ -47,7 +48,7 @@ const db = new NodeFire(firebaseUrl);
 const pace = require('pace')(1);
 let updatedTokens = 0;
 
-co(function*() {
+Promise.co(function*() {
   const results = yield [requestKeys('users'), db.auth(firebaseAuth)];
   const userKeys = results[0];
   pace.total = userKeys.length;
