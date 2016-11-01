@@ -2,7 +2,7 @@
 'use strict';
 
 global.Promise = require('bluebird');
-Promise.co = require('bluebird-co').co;
+Promise.co = require('co');
 const _ = require('lodash');
 const constants = require('constants');
 const crypto = require('crypto');
