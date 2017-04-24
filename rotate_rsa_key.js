@@ -46,18 +46,21 @@ const firebaseAuth = process.env.REVIEWABLE_FIREBASE_AUTH;
 const db = new NodeFire(firebaseUrl);
 
 const pace = require('pace')(1);
-let updatedTokens = 0;
+let updatedTokens = 0, scannedUsers = 0, checkedTokens = 0;
 
 Promise.co(function*() {
   const results = yield [requestKeys('users'), db.auth(firebaseAuth)];
   const userKeys = results[0];
   pace.total = userKeys.length;
-  yield eachLimit(userKeys, 100, function*(userKey) {
+  yield eachLimit(userKeys, 200, function*(userKey) {
     yield db.child('users/:userKey/core/gitHubToken', {userKey}).transaction(
-      oldToken => oldToken && recrypt(userKey, oldToken));
+      oldToken => recrypt(userKey, oldToken)
+    );
     pace.op();
   });
-  console.log('Re-encrypted', updatedTokens, 'token' + (updatedTokens === 1 ? '' : 's'));
+  console.log(
+    `Re-encrypted ${pluralize(updatedTokens, 'token')}`,
+    `(checked ${pluralize(checkedTokens, 'tokens')} from ${pluralize(scannedUsers, 'users')})`);
 }).then(() => {
   process.exit(0);
 }, e => {
@@ -104,7 +107,9 @@ function decode(string) {
 }
 
 function recrypt(userKey, encrypted) {
+  scannedUsers += 1;
   if (!encrypted) return;
+  checkedTokens += 1;
   let plainText = encrypted;
   if (/^rsa/.test(encrypted)) {
     let version;
@@ -140,7 +145,7 @@ function recrypt(userKey, encrypted) {
         errors.push(e);
       }
     }
-    if (!plainText) {
+    if (plainText === encrypted) {
       const e = new Error('Unable to decrypt token with any key: ' + encrypted);
       e.errors = errors;
       throw e;
@@ -175,4 +180,8 @@ function extractPublicKey() {
   if (!(rsa2Keys && rsa2Keys.length)) return;
   const privateKey = rsa2Keys[0];
   return forge.pki.setRsaPublicKey(privateKey.n, privateKey.e);
+}
+
+function pluralize(count, item) {
+  return count + ' ' + item + (count === 1 ? '' : 's');
 }
