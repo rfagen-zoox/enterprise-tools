@@ -1,0 +1,1040 @@
+{
+  "rules": {
+    "system": {
+      "star": {
+        ".encrypt": {
+          "value": "#"
+        }
+      },
+      "bang": {
+        ".encrypt": {
+          "value": "#"
+        }
+      },
+      "keyCheck": {
+        ".encrypt": {
+          "value": "#"
+        }
+      }
+    },
+    "queues": {
+      "github": {
+        "$eventKey": {
+          "statusSyncKey": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "pusher": {
+            "name": {
+              ".encrypt": {
+                "value": "#"
+              }
+            }
+          },
+          "member": {
+            "login": {
+              ".encrypt": {
+                "value": "#"
+              }
+            }
+          },
+          "organization": {
+            "login": {
+              ".encrypt": {
+                "value": "#"
+              }
+            }
+          },
+          "repository": {
+            "name": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "full_name": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "owner": {
+              "login": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              },
+              "name": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              }
+            }
+          }
+        }
+      },
+      "githubMergeableSync": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$prKey": {
+          "owner": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repo": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#|#|."
+          }
+        }
+      },
+      "githubPullRequestSync": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$prKey": {
+          "owner": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repo": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "responseKeys": {
+            "$responseKey": {
+              ".encrypt": {
+                "few": true
+              }
+            }
+          },
+          ".encrypt": {
+            "key": "#|#|.|."
+          }
+        }
+      },
+      "githubRenames": {
+        "$identityKey": {
+          "source": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "target": {
+            ".encrypt": {
+              "value": "#"
+            }
+          }
+        }
+      },
+      "reconciliation": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$prKey": {
+          "owner": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repo": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#|#|."
+          }
+        }
+      },
+      "memberships": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$organization": {
+          "organization": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "subscribers": {
+            "$subscriptionKey": {
+              ".encrypt": {
+                "few": true
+              }
+            }
+          },
+          ".encrypt": {
+            "key": "#"
+          }
+        }
+      },
+      "requests": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$requestKey": {
+          "ownerName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repoName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "extraOrganizations": {
+            "$index": {
+              ".encrypt": {
+                "few": true,
+                "value": "#"
+              }
+            }
+          },
+          "username": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "fileName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "code": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "context": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#"
+          }
+        }
+      },
+      "responses": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$requestKey": {
+          "error": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "result": {
+            "state": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "upload": {
+              "form": {
+                "key": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "path": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                }
+              }
+            },
+            "download": {
+              "url": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              }
+            },
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#"
+          }
+        }
+      },
+      "polls": {
+        "$pollKey": {
+          ".encrypt": {
+            "few": true
+          }
+        }
+      },
+      "cron": {
+        "$taskKey": {
+          "checkpointKey": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "lastResult": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "few": true
+          }
+        }
+      },
+      "permissions": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$permissionKey": {
+          "ownerName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repoName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "verdict": {
+            "error": {
+              ".encrypt": {
+                "value": "#"
+              }
+            }
+          },
+          "verdicts": {
+            "$ownerName": {
+              "$repoName": {
+                ".encrypt": {
+                  "key": "#",
+                  "few": true
+                }
+              },
+              ".encrypt": {
+                "key": "#",
+                "few": true
+              }
+            }
+          },
+          ".encrypt": {
+            "key": "#|#|."
+          }
+        }
+      }
+    },
+    "enrollments": {
+      "list": {
+        "$enrollmentKey": {
+          ".encrypt": {
+            "few": true
+          }
+        }
+      }
+    },
+    "identities": {
+      "$key": {
+        "name": {
+          ".encrypt": {
+            "value": "#"
+          }
+        }
+      }
+    },
+    "organizations": {
+      "$ownerName": {
+        "prototypeRepository": {
+          "name": {
+            ".encrypt": {
+              "value": "#"
+            }
+          }
+        },
+        ".encrypt": {
+          "key": "#"
+        }
+      }
+    },
+    "repositories": {
+      "$ownerName": {
+        "$repoName": {
+          "core": {
+            "renamed": {
+              "ownerName": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              },
+              "repoName": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              }
+            },
+            "settings": {
+              "lgtmText": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              }
+            }
+          },
+          "current": {
+            "openPullRequests": {
+              "$pullRequestId": {
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            }
+          },
+          "pullRequests": {
+            "$pullRequestId": {
+              ".encrypt": {
+                "few": true
+              }
+            }
+          },
+          "oldPullRequests": {
+            "$pullRequestId": {
+              ".encrypt": {
+                "few": true
+              }
+            }
+          },
+          "issues": {
+            "index": {
+              "$issueNumber": {
+                "title": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            }
+          },
+          "protection": {
+            "$branch": {
+              "required_status_checks": {
+                "contexts": {
+                  "$i": {
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                }
+              },
+              "restrictions": {
+                "users": {
+                  "$i": {
+                    "login": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                },
+                "teams": {
+                  "$i": {
+                    "slug": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                }
+              },
+              ".encrypt": {
+                "key": "#",
+                "few": true
+              }
+            }
+          },
+          ".encrypt": {
+            "key": "#"
+          }
+        },
+        ".encrypt": {
+          "key": "#"
+        }
+      }
+    },
+    "badConnections": {
+      "$ownerRepoName": {
+        "ownerName": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        "repoName": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        ".encrypt": {
+          "key": "#|#"
+        }
+      }
+    },
+    "reviews": {
+      "$reviewKey": {
+        "core": {
+          "ownerName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repoName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "branch": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "branchRepoName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "baseBranch": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "assignees": {
+            "$userKey": {
+              ".encrypt": {
+                "few": true
+              }
+            }
+          },
+          "title": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "error": {
+            ".encrypt": {
+              "value": "#"
+            }
+          }
+        },
+        "security": {
+          "lowerCaseOwnerName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "lowerCaseRepoName": {
+            ".encrypt": {
+              "value": "#"
+            }
+          }
+        },
+        "revisions": {
+          "$revisionKey": {
+            "commits": {
+              "$arbitraryKey": {
+                "title": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "files": {
+          "$fileKey": {
+            "path": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "revisions": {
+              "$revisionKey": {
+                "reviewers": {
+                  "$userKey": {
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "metaFiles": {
+          "$fileKey": {
+            "path": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "revisions": {
+              "$revisionKey": {
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "discussions": {
+          "$discussionKey": {
+            "comments": {
+              "$commentKey": {
+                "markdownBody": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "htmlBody": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "gitHubComments": {
+          "$commentId": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "tracker": {
+          "$discussionKey": {
+            "participants": {
+              "$userKey": {
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "labels": {
+          "$label": {
+            ".encrypt": {
+              "key": "#",
+              "few": true
+            }
+          }
+        },
+        "milestone": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        "sentiments": {
+          "$userKey": {
+            "comments": {
+              "$commentKey": {
+                "emojis": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "statuses": {
+          "$revisionKey": {
+            "counts": {
+              "$state": {
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            "services": {
+              "$context": {
+                "context": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "description": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "url": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "key": "#",
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        }
+      }
+    },
+    "filemaps": {
+      "$reviewKey": {
+        "$leftShaRightSha": {
+          "$fileKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        }
+      }
+    },
+    "linemaps": {
+      "$reviewKey": {
+        "$leftShaRightSha": {
+          "$entryKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        }
+      }
+    },
+    "subscriptions": {
+      "$subscriptionId": {
+        "organization": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        "periods": {
+          "$periodStart": {
+            "activeUsers": {
+              "$userKey": {
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "seats": {
+          "$userKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "notificationsSent": {
+          "$userKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        }
+      }
+    },
+    "rules": {
+      "$ownerName": {
+        "$repoName": {
+          "reviewCompletion": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#"
+          }
+        },
+        ".encrypt": {
+          "key": "#"
+        }
+      }
+    },
+    "memberships": {
+      "$itemKey": {
+        "organization": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        "company": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        "logoUrl": {
+          ".encrypt": {
+            "value": "#"
+          }
+        },
+        ".encrypt": {
+          "key": "#|#"
+        }
+      }
+    },
+    "users": {
+      "$userKey": {
+        "core": {
+          "email": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "billingEmail": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "public": {
+            "username": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "displayName": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "avatarUrl": {
+              ".encrypt": {
+                "value": "#"
+              }
+            }
+          }
+        },
+        "stripe": {
+          "trialEndTimestamps": {
+            "$organization": {
+              ".encrypt": {
+                "key": "#",
+                "few": true
+              }
+            }
+          }
+        },
+        "index": {
+          "subscriptions": {
+            "$subscriptionId": {
+              ".encrypt": {
+                "few": true
+              }
+            }
+          },
+          "memberships": {
+            "$membershipKey": {
+              ".encrypt": {
+                "key": "#|#",
+                "few": true
+              }
+            }
+          }
+        },
+        "notifications": {
+          "$notificationKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "settings": {
+          "syntaxStylesheetUrl": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "monospaceFont": {
+            "family": {
+              ".encrypt": {
+                "value": "#"
+              }
+            }
+          },
+          "lineLinkTemplate": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "keyBindingsUrl": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "dismissals": {
+            "repoConnectionPrompt": {
+              "$ownerRepo": {
+                ".encrypt": {
+                  "key": "#|#",
+                  "few": true
+                }
+              }
+            },
+            "memberWelcome": {
+              "$membershipKey": {
+                ".encrypt": {
+                  "key": "#",
+                  "few": true
+                }
+              }
+            }
+          }
+        },
+        "state": {
+          "$reviewKey": {
+            "drafts": {
+              "$draftKey": {
+                "markdownBody": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "htmlBody": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "htmlBodies": {
+                  "$hashKey": {
+                    ".encrypt": {
+                      "few": true,
+                      "value": "#"
+                    }
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            "trash": {
+              "$locationKey": {
+                "$draftKey": {
+                  "markdownBody": {
+                    ".encrypt": {
+                      "value": "#"
+                    }
+                  },
+                  "htmlBody": {
+                    ".encrypt": {
+                      "value": "#"
+                    }
+                  },
+                  "htmlBodies": {
+                    "$hashKey": {
+                      ".encrypt": {
+                        "few": true,
+                        "value": "#"
+                      }
+                    }
+                  },
+                  ".encrypt": {
+                    "few": true
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            "marks": {
+              "$fileKey": {
+                "revisions": {
+                  "$revisionKey": {
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            "settings": {
+              "mergeCommitMessage": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
