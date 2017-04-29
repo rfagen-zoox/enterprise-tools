@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-'use strict';
 
 global.Promise = require('bluebird');
 Promise.co = require('co');
@@ -8,28 +7,15 @@ const constants = require('constants');
 const crypto = require('crypto');
 const eachLimit = require('async-co/eachLimit');
 const forge = require('node-forge');
-const HttpsAgent = require('agentkeepalive').HttpsAgent;
-const ms = require('ms');
 const NodeFire = require('nodefire');
-const request = require('request');
+const requestKeys = require('./lib/requestKeys.js');
+const requireEnvVars = require('./lib/requireEnvVars.js');
 
 NodeFire.setCacheSize(0);
 
-const agent = new HttpsAgent({
-  keepAliveMsecs: ms('1s'), keepAliveTimeout: ms('15s'), timeout: ms('30s'), maxSockets: 3,
-  maxFreeSockets: 1
-});
-
-const requiredEnvVars = [
+requireEnvVars(
   'REVIEWABLE_FIREBASE', 'REVIEWABLE_FIREBASE_AUTH', 'REVIEWABLE_ENCRYPTION_PRIVATE_KEYS'
-];
-
-for (let property of requiredEnvVars) {
-  if (!process.env[property]) {
-    console.log('Missing required environment variable: ' + property);
-    process.exit(1);
-  }
-}
+);
 
 const rsaKeys = parsePrivateKeys();
 if (!rsaKeys.length) {
@@ -69,42 +55,6 @@ Promise.co(function*() {
   console.log(e.stack);
   process.exit(1);
 });
-
-function requestKeys(path) {
-  return new Promise((resolve, reject) => {
-    let tries = 0;
-    const uriPath =
-      '/' + _(path.split('/')).compact().map(part => encodeURIComponent(part)).join('/');
-    const req = () => request(
-      {
-        uri: firebaseUrl + uriPath + '.json', agent: agent, qs: {auth: firebaseAuth, shallow: true}
-      },
-      (error, response, data) => {
-        if (!error) {
-          if (response.statusCode === 200) {
-            try {
-              resolve(_(JSON.parse(data)).keys().map(decode).value());
-              return;
-            } catch (e) {
-              error = e;
-            }
-          } else {
-            error = new Error(
-              'Request for ' + uriPath + ' returned ' + response.statusCode + ': ' + response.body);
-          }
-        }
-        if (++tries <= 3) req(); else reject(error);
-      }
-    );
-    req();
-  });
-}
-
-function decode(string) {
-  return string.replace(/\\../g, function(match) {
-    return String.fromCharCode(parseInt(match.slice(1), 16));
-  });
-}
 
 function recrypt(userKey, encrypted) {
   scannedUsers += 1;
