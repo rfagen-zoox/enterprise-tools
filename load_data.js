@@ -104,8 +104,8 @@ function *loadReviews() {
     const syncOptions = {
       userKey: args.admin, prNumber: review.core.pullRequestId,
       owner: review.core.ownerName.toLowerCase(), repo: review.core.repoName.toLowerCase(),
-      updateReview: true, syncComments: true, syncStatus: true,
-      timestamp: NodeFire.ServerValue.TIMESTAMP
+      updateReview: true, syncComments: true, syncStatus: true, mustSucceed: true,
+      overrideBadge: true, timestamp: NodeFire.ServerValue.TIMESTAMP
     };
     yield rdb.child(
       'queues/githubPullRequestSync/:owner|:repo|:prNumber|:userKey', syncOptions
