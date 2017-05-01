@@ -51,7 +51,8 @@ if (process.env.REVIEWABLE_ENCRYPTION_AES_KEY) {
       algorithm: 'aes-siv', key: process.env.REVIEWABLE_ENCRYPTION_AES_KEY,
       cacheSize: 50 * 1048576
     },
-    JSON.parse(fs.readFileSync('rules_firecrypt.json')));
+    require('./rules_firecrypt.json')
+  );
 } else {
   console.log('WARNING: not encrypting uploaded data as REVIEWABLE_ENCRYPTION_AES_KEY not given');
 }
