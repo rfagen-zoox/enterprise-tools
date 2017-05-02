@@ -3,13 +3,16 @@
 
 global.Promise = require('bluebird');
 Promise.co = require('co');
+require('any-promise/register/bluebird');
 const fs = require('fs');
 const commandLineArgs = require('command-line-args');
 const getUsage = require('command-line-usage');
 const _ = require('lodash');
 const eachLimit = require('async-co/eachLimit');
 const eachOfLimit = require('async-co/eachOfLimit');
+const eachOf = require('async-co/eachOf');
 const NodeFire = require('nodefire');
+const PromiseWritable = require('promise-writable');
 const requireEnvVars = require('./lib/requireEnvVars.js');
 
 NodeFire.setCacheSize(0);
@@ -48,34 +51,53 @@ for (let property of ['repos', 'users', 'output']) {
 
 requireEnvVars('REVIEWABLE_FIREBASE', 'REVIEWABLE_FIREBASE_AUTH');
 
+const userMap = JSON.parse(fs.readFileSync(args.users));
 const repoNames =
   _(JSON.parse(fs.readFileSync(args.repos))).map(key => key.toLowerCase()).uniq().value();
-const userMap = JSON.parse(fs.readFileSync(args.users));
+const groupedRepoNames = _.groupBy(repoNames, name => name.split('/')[0]);
+const orgNames = _(repoNames).map(name => name.replace(/\/.*/, '')).uniq().value();
 
-const pace = require('pace')(1);
+const out = new PromiseWritable(fs.createWriteStream(args.output));
+out.stream.setMaxListeners(Infinity);
+
+const pace = require('pace')(1 + orgNames.length + repoNames.length + _.size(userMap));
 
 const db = new NodeFire(`https://${process.env.REVIEWABLE_FIREBASE}.firebaseio.com`);
 
-const data = {};
-let reviewKeys;
-let ghostedUserKeys = [];
+let reviewKeys = [];
+let ghostedUsers = [];
 
 Promise.co(function*() {
   yield db.auth(process.env.REVIEWABLE_FIREBASE_AUTH);
-  yield [extractRepositories(), extractOrganizations()];
-  reviewKeys = listReviewKeys();
-  yield [extractReviews(), extractUsers()];
-  fs.writeFileSync(args.output, JSON.stringify(data));
+  yield writeCollection(function *writeTopLevelObject() {
+    yield extractOrganizations();
+    yield extractRepositories();
+    reviewKeys = _.uniq(reviewKeys);
+    pace.total += 3 * reviewKeys.length;
+    yield extractUsers();
+    yield extractReviews();
+    yield extractLinemaps();
+    yield extractFilemaps();
+  });
+  yield out.end();
   pace.op();
 
-  if (ghostedUserKeys.length) {
-    ghostedUserKeys = _.uniq(ghostedUserKeys);
-    console.log(`${ghostedUserKeys.length} users could not be mapped over:`);
-    const usernames = yield eachLimit(ghostedUserKeys, 5, function*(userKey) {
-      const user = yield db.child('users/:userKey/core/public', {userKey}).get();
-      return user ? user.username : ` user ${userKey.replace(/github:/, '')}`;
+  if (ghostedUsers.length) {
+    ghostedUsers = _.uniq(ghostedUsers, false, item => item.userKey);
+    console.log(`${ghostedUsers.length} users could not be mapped over:`);
+    const users = yield eachLimit(ghostedUsers, 5, function*(item) {
+      const user = yield db.child('users/:userKey/core/public', {userKey: item.userKey}).get();
+      return {
+        username: user ? user.username : ` user ${item.userKey.replace(/github:/, '')}`,
+        context: item.context
+      };
     });
-    console.log(_(usernames).sortBy().join('\n'));
+    console.log(
+      _(users)
+        .sortBy(user => user.username.toLowerCase())
+        .map(user => `${user.username} @ ${user.context}`)
+        .join('\n')
+    );
   }
 }).then(() => {
   process.exit(0);
@@ -88,106 +110,143 @@ Promise.co(function*() {
 
 
 function *extractOrganizations() {
-  const orgNames = _(repoNames).map(name => name.replace(/\/.*/, '')).uniq().value();
   if (!orgNames.length) return;
-  pace.total += orgNames.length;
-  data.organizations = {};
-  yield eachLimit(orgNames, 5, function*(org) {
-    const organization = yield db.child('organizations/:org', {org}).get();
-    if (organization) {
-      data.organizations[NodeFire.escape(org)] = mapAllUserKeys(organization);
-    }
-    pace.op();
+  yield writeCollection('organizations', function*() {
+    yield eachLimit(orgNames, 5, function*(org) {
+      const organization = yield db.child('organizations/:org', {org}).get();
+      if (organization) {
+        yield writeItem(
+          NodeFire.escape(org), mapAllUserKeys(organization, `/organizations/${org}`));
+      }
+      pace.op();
+    });
   });
 }
 
 function *extractRepositories() {
   if (!repoNames.length) return;
-  pace.total += repoNames.length;
-  data.repositories = {};
-  yield eachLimit(repoNames, 10, function*(repoName) {
-    const [owner, repo] = repoName.split('/');
-    let repository = yield db.child('repositories/:owner/:repo', {owner, repo}).get();
-    if (repository) {
-      repository.core = _.omit(
-        repository.core, 'id', 'connection', 'connector', 'reviewableBadge', 'errorCode', 'error',
-        'hookEvents'
-      );
-      repository = _.omit(repository, 'adminUserKeys', 'current', 'issues', 'protection');
-      data.repositories[NodeFire.escape(owner)] = data.repositories[NodeFire.escape(owner)] || {};
-      data.repositories[NodeFire.escape(owner)][NodeFire.escape(repo)] = mapAllUserKeys(repository);
-    }
-    pace.op();
+  yield writeCollection('repositories', function*() {
+    yield eachOf(groupedRepoNames, function*(repoNamesGroup, orgName) {
+      yield writeCollection(NodeFire.escape(orgName), function*() {
+        yield eachLimit(repoNamesGroup, 10, function*(repoName) {
+          const [owner, repo] = repoName.split('/');
+          let repository = yield db.child('repositories/:owner/:repo', {owner, repo}).get();
+          if (repository) {
+            repository.core = _.omit(
+              repository.core, 'id', 'connection', 'connector', 'reviewableBadge', 'errorCode',
+              'error', 'hookEvents'
+            );
+            repository = _.omit(repository, 'adminUserKeys', 'current', 'issues', 'protection');
+            reviewKeys = reviewKeys.concat(
+              _.values(repository.pullRequests), _.values(repository.oldPullRequests));
+            yield writeItem(
+              NodeFire.escape(repo), mapAllUserKeys(repository, `/repositories/${owner}/${repo}`));
+          }
+          pace.op();
+        });
+      });
+    });
   });
 }
 
-function listReviewKeys() {
-  return _(data.repositories)
-    .map(organization => _.map(organization, repository => [
-      _.values(repository.pullRequests), _.values(repository.oldPullRequests)
-    ]))
-    .flattenDeep()
-    .uniq()
-    .value();
+function *extractReviews() {
+  if (!reviewKeys.length) return;
+  yield writeCollection('reviews', function*() {
+    yield eachLimit(reviewKeys, 25, function*(reviewKey) {
+      const review = yield db.child('reviews/:reviewKey', {reviewKey}).get();
+      review.core = _.omit(review.core, 'lastSweepTimestamp');
+      review.discussions = _.pick(review.discussions, discussion => {
+        discussion.comments =
+          _.pick(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+        return !_.isEmpty(discussion.comments);
+      });
+      if (_.isEmpty(review.discussions)) delete review.discussions;
+      _.each(review.tracker, tracker => {
+        tracker.participants = _.omit(tracker.participants, (participant, userKey) => {
+          return !userMap[userKey] && participant.role === 'mentioned';
+        });
+      });
+      delete review.gitHubComments;
+      review.sentiments = _.pick(review.sentiments, sentiment => {
+        sentiment.comments =
+          _.pick(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+        return !_.isEmpty(sentiment.comments);
+      });
+      if (_.isEmpty(review.sentiments)) delete review.sentiments;
+      yield writeItem(reviewKey, mapAllUserKeys(review, `/reviews/${reviewKey}`));
+      pace.op();
+    });
+  });
 }
 
-function *extractReviews() {
-  pace.total += reviewKeys.length;
-  data.reviews = {};
-  data.linemaps = {};
-  data.filemaps = {};
-  yield eachLimit(reviewKeys, 25, function*(reviewKey) {
-    const rdb = db.scope({reviewKey});
-    const {review, linemap, filemap} = yield {
-      review: rdb.child('reviews/:reviewKey').get(),
-      linemap: rdb.child('linemaps/:reviewKey').get(),
-      filemap: rdb.child('filemaps/:reviewKey').get()
-    };
-    review.core = _.omit(review.core, 'lastSweepTimestamp');
-    review.discussions = _.pick(review.discussions, discussion => {
-      discussion.comments =
-        _.pick(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
-      return !_.isEmpty(discussion.comments);
+function *extractLinemaps() {
+  if (!reviewKeys.length) return;
+  yield writeCollection('linemaps', function*() {
+    yield eachLimit(reviewKeys, 25, function*(reviewKey) {
+      const linemap = yield db.child('linemaps/:reviewKey', {reviewKey}).get();
+      if (linemap) yield writeItem(reviewKey, linemap);
+      pace.op();
     });
-    if (_.isEmpty(review.discussions)) delete review.discussions;
-    delete review.gitHubComments;
-    review.sentiments = _.pick(review.sentiments, sentiment => {
-      sentiment.comments =
-        _.pick(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
-      return !_.isEmpty(sentiment.comments);
+  });
+}
+
+function *extractFilemaps() {
+  if (!reviewKeys.length) return;
+  yield writeCollection('filemaps', function*() {
+    yield eachLimit(reviewKeys, 25, function*(reviewKey) {
+      const filemap = yield db.child('filemaps/:reviewKey', {reviewKey}).get();
+      if (filemap) yield writeItem(reviewKey, filemap);
+      pace.op();
     });
-    if (_.isEmpty(review.sentiments)) delete review.sentiments;
-    data.reviews[reviewKey] = mapAllUserKeys(review);
-    if (linemap) data.linemaps[reviewKey] = linemap;
-    if (filemap) data.filemaps[reviewKey] = filemap;
-    pace.op();
   });
 }
 
 function *extractUsers() {
-  pace.total += _.size(userMap);
-  data.users = {};
-  yield eachOfLimit(userMap, 25, function*(newUserKey, oldUserKey) {
-    let user = yield db.child('users/:oldUserKey', {oldUserKey}).get();
-    user = _.omit(user, 'stripe', 'enrollments', 'index', 'notifications');
-    delete user.core;
-    if (user.settings) delete user.settings.dismissals;
-    if (user.state) user.state = _.pick(user.state, reviewKeys);
-    data.users[newUserKey] = mapAllUserKeys(user);
-    pace.op();
+  if (_.isEmpty(userMap)) return;
+  yield writeCollection('users', function*() {
+    yield eachOfLimit(userMap, 25, function*(newUserKey, oldUserKey) {
+      let user = yield db.child('users/:oldUserKey', {oldUserKey}).get();
+      user = _.omit(user, 'stripe', 'enrollments', 'index', 'notifications');
+      delete user.core;
+      if (user.settings) delete user.settings.dismissals;
+      if (user.state) user.state = _.pick(user.state, reviewKeys);
+      yield writeItem(newUserKey, mapAllUserKeys(user, `/users/${oldUserKey}`));
+      pace.op();
+    });
   });
 }
 
-function mapAllUserKeys(object) {
+let newCollection = true;
+
+function *writeCollection(key, writer) {
+  if (!writer) {
+    writer = key;
+    key = null;
+  }
+  if (!writer.name && key) Object.defineProperty(writer, 'name', {value: `writeCollection_${key}`});
+  yield out.write(`${newCollection ? '' : ', '}${key ? JSON.stringify(key) + ': ' : ''}{`);
+  newCollection = true;
+  yield writer();
+  yield out.write('}');
+  newCollection = false;
+}
+
+function *writeItem(key, value) {
+  const prefix = newCollection ? '' : ', ';
+  newCollection = false;
+  yield out.write(`${prefix}${JSON.stringify(key)}: ${JSON.stringify(value)}`);
+}
+
+function mapAllUserKeys(object, context) {
   if (_.isString(object)) {
-    if (/^github:\d+$/.test(object)) return mapUserKey(object);
+    if (/^github:\d+$/.test(object)) return mapUserKey(object, context);
     if (/^github:\d+(\s*,\s*github:\d+)*$/.test(object)) {
       return _(object).split(/\s*,\s*/).map(mapUserKey).uniq().join(',');
     }
   } else if (_.isObject(object)) {
     for (const key in object) {
-      const value = mapAllUserKeys(object[key]);
-      const newKey = mapAllUserKeys(key);
+      const value = mapAllUserKeys(object[key], context + '/' + key);
+      const newKey = mapAllUserKeys(key, context + '/$key');
       if (key !== newKey) delete object[key];
       if (_.isObject(value) && _.isEmpty(value)) {
         delete object[key];
@@ -199,9 +258,9 @@ function mapAllUserKeys(object) {
   return object;
 }
 
-function mapUserKey(userKey) {
+function mapUserKey(userKey, context) {
   const newUserKey = userMap[userKey] || args.ghost;
   if (!newUserKey) throw new Error(`User not mapped and no ghost specified: ${userKey}`);
-  if (newUserKey === args.ghost) ghostedUserKeys.push(userKey);
+  if (newUserKey === args.ghost) ghostedUsers.push({userKey, context});
   return newUserKey;
 }
