@@ -23,8 +23,6 @@ const commandLineOptions = [
   {name: 'users', alias: 'u', typeLabel: '[underline]{users.json}',
    description:
     'A file with a JSON object of {"github:MMMM": "github:NNNN"} user id mappings (required).'},
-  {name: 'ghost', alias: 'g', typeLabel: '[underline]{github:NNNN}',
-   description: 'A user id to substitute instead of no mapping is found for an old user.'},
   {name: 'output', alias: 'o', typeLabel: '[underline]{data.json}',
    description: 'Output JSON file for extracted data (required).'},
   {name: 'help', alias: 'h', type: Boolean,
@@ -259,8 +257,8 @@ function mapAllUserKeys(object, context) {
 }
 
 function mapUserKey(userKey, context) {
-  const newUserKey = userMap[userKey] || args.ghost;
+  const newUserKey = userMap[userKey] || 'github:1';
   if (!newUserKey) throw new Error(`User not mapped and no ghost specified: ${userKey}`);
-  if (newUserKey === args.ghost) ghostedUsers.push({userKey, context});
+  if (newUserKey === 'github:1') ghostedUsers.push({userKey, context});
   return newUserKey;
 }
