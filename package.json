@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
     "rotate_rsa_key": "./rotate_rsa_key.js",
