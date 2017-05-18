@@ -68,8 +68,8 @@ const db = new NodeFire(`https://${process.env.REVIEWABLE_FIREBASE}.firebaseio.c
 Promise.co(function*() {
   yield db.auth(process.env.REVIEWABLE_FIREBASE_AUTH);
   yield [loadOrganizations(), loadRepositories()];
-  yield loadReviews();
   yield loadUsers();
+  yield loadReviews();
 }).then(() => {
   process.exit(0);
 }, e => {
