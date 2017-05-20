@@ -368,7 +368,7 @@
       }
     },
     "organizations": {
-      "$ownerName": {
+      "$organization": {
         "prototypeRepository": {
           "name": {
             ".encrypt": {
@@ -793,13 +793,6 @@
           }
         },
         "seats": {
-          "$userKey": {
-            ".encrypt": {
-              "few": true
-            }
-          }
-        },
-        "notificationsSent": {
           "$userKey": {
             ".encrypt": {
               "few": true
