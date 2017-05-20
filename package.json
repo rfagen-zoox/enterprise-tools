@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
     "rotate_rsa_key": "./rotate_rsa_key.js",
@@ -36,6 +36,7 @@
     "co": "^4.6.0",
     "command-line-args": "^4.0.3",
     "command-line-usage": "^4.0.0",
+    "event-stream": "^3.3.4",
     "firebase": "^2.4.2",
     "firecrypt": "^0.3.3",
     "lodash": "^3.10.1",
@@ -43,6 +44,7 @@
     "node-forge": "^0.6.43",
     "nodefire": "^0.7.0",
     "pace": "0.0.4",
+    "promise-readable": "^0.4.2",
     "promise-writable": "^0.1.3",
     "request": "^2.74.0",
     "serialized-lru-cache": "^3.1.0"

@@ -4,6 +4,7 @@
 global.Promise = require('bluebird');
 Promise.co = require('co');
 const fs = require('fs');
+const es = require('event-stream');
 const commandLineArgs = require('command-line-args');
 const getUsage = require('command-line-usage');
 const _ = require('lodash');
@@ -11,6 +12,7 @@ const eachLimit = require('async-co/eachLimit');
 const eachOfLimit = require('async-co/eachOfLimit');
 const Firebase = require('firebase');
 const NodeFire = require('nodefire');
+const PromiseReadable = require('promise-readable');
 const requireEnvVars = require('./lib/requireEnvVars.js');
 
 NodeFire.setCacheSize(0);
@@ -57,15 +59,20 @@ if (process.env.REVIEWABLE_ENCRYPTION_AES_KEY) {
   console.log('WARNING: not encrypting uploaded data as REVIEWABLE_ENCRYPTION_AES_KEY not given');
 }
 
-const data = JSON.parse(fs.readFileSync(args.input));
-const repoEntries = _(data.repositories)
-  .map((org, orgName) => _.map(org, (repo, repoName) => ({owner: orgName, repo: repoName})))
-  .flattenDeep().value();
-const numItems = 1 + _.size(data.reviews) + _.size(data.users) + _.size(repoEntries);
-const pace = require('pace')(numItems);
+const data = {};
+let pace, repoEntries;
 const db = new NodeFire(`https://${process.env.REVIEWABLE_FIREBASE}.firebaseio.com`);
 
 Promise.co(function*() {
+  console.log('Reading data file...');
+  yield readData();
+
+  console.log('Uploading data to Firebase...');
+  repoEntries = _(data.repositories)
+    .map((org, orgName) => _.map(org, (repo, repoName) => ({owner: orgName, repo: repoName})))
+    .flattenDeep().value();
+  pace = require('pace')(1 + _.size(data.reviews) + _.size(data.users) + _.size(repoEntries));
+
   yield db.auth(process.env.REVIEWABLE_FIREBASE_AUTH);
   yield [loadOrganizations(), loadRepositories()];
   yield loadUsers();
@@ -79,6 +86,30 @@ Promise.co(function*() {
   if (e.extra && e.extra.debug) console.log(e.extra.debug);
   process.exit(1);
 });
+
+function *readData() {
+  pace = require('pace')(fs.statSync(args.input).size);
+  let sizeRead = 0;
+  const reader = fs.createReadStream(args.input)
+    .pipe(es.mapSync(chunk => {
+      sizeRead += chunk.length;
+      pace.op(sizeRead);
+      return chunk;
+    }))
+    .pipe(es.split())
+    .pipe(es.mapSync(line => {
+      const match = line.match(/^\s*,?\s*("[^"]+"):(.*)$/);
+      if (!match) return;
+      const path = JSON.parse(match[1]).split('/');
+      let item = data;
+      for (const segment of path.slice(0, -1)) {
+        if (!item[segment]) item[segment] = {};
+        item = item[segment];
+      }
+      item[_.last(path)] = JSON.parse(match[2]);
+    }));
+  yield new PromiseReadable(reader).once('end');
+}
 
 function *loadOrganizations() {
   yield db.child('organizations').update(data.organizations);

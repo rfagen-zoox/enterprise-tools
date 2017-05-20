@@ -67,16 +67,16 @@ let ghostedUsers = [];
 
 Promise.co(function*() {
   yield db.auth(process.env.REVIEWABLE_FIREBASE_AUTH);
-  yield writeCollection(function *writeTopLevelObject() {
-    yield extractOrganizations();
-    yield extractRepositories();
-    reviewKeys = _.uniq(reviewKeys);
-    pace.total += 3 * reviewKeys.length;
-    yield extractUsers();
-    yield extractReviews();
-    yield extractLinemaps();
-    yield extractFilemaps();
-  });
+  yield out.write('{\n');
+  yield extractOrganizations();
+  yield extractRepositories();
+  reviewKeys = _.uniq(reviewKeys);
+  pace.total += 3 * reviewKeys.length;
+  yield extractUsers();
+  yield extractReviews();
+  yield extractLinemaps();
+  yield extractFilemaps();
+  yield out.write('}\n');
   yield out.end();
   pace.op();
 
@@ -118,7 +118,7 @@ function *extractOrganizations() {
       }
       pace.op();
     });
-  });
+  }, true);
 }
 
 function *extractRepositories() {
@@ -144,36 +144,34 @@ function *extractRepositories() {
         });
       });
     });
-  });
+  }, true);
 }
 
 function *extractReviews() {
   if (!reviewKeys.length) return;
-  yield writeCollection('reviews', function*() {
-    yield eachLimit(reviewKeys, 25, function*(reviewKey) {
-      const review = yield db.child('reviews/:reviewKey', {reviewKey}).get();
-      review.core = _.omit(review.core, 'lastSweepTimestamp');
-      review.discussions = _.pick(review.discussions, discussion => {
-        discussion.comments =
-          _.pick(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
-        return !_.isEmpty(discussion.comments);
-      });
-      if (_.isEmpty(review.discussions)) delete review.discussions;
-      _.each(review.tracker, tracker => {
-        tracker.participants = _.omit(tracker.participants, (participant, userKey) => {
-          return !userMap[userKey] && participant.role === 'mentioned';
-        });
-      });
-      delete review.gitHubComments;
-      review.sentiments = _.pick(review.sentiments, sentiment => {
-        sentiment.comments =
-          _.pick(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
-        return !_.isEmpty(sentiment.comments);
-      });
-      if (_.isEmpty(review.sentiments)) delete review.sentiments;
-      yield writeItem(reviewKey, mapAllUserKeys(review, `/reviews/${reviewKey}`));
-      pace.op();
+  yield eachLimit(reviewKeys, 25, function*(reviewKey) {
+    const review = yield db.child('reviews/:reviewKey', {reviewKey}).get();
+    review.core = _.omit(review.core, 'lastSweepTimestamp');
+    review.discussions = _.pick(review.discussions, discussion => {
+      discussion.comments =
+        _.pick(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+      return !_.isEmpty(discussion.comments);
     });
+    if (_.isEmpty(review.discussions)) delete review.discussions;
+    _.each(review.tracker, tracker => {
+      tracker.participants = _.omit(tracker.participants, (participant, userKey) => {
+        return !userMap[userKey] && participant.role === 'mentioned';
+      });
+    });
+    delete review.gitHubComments;
+    review.sentiments = _.pick(review.sentiments, sentiment => {
+      sentiment.comments =
+        _.pick(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+      return !_.isEmpty(sentiment.comments);
+    });
+    if (_.isEmpty(review.sentiments)) delete review.sentiments;
+    yield writeItem(`reviews/${reviewKey}`, mapAllUserKeys(review, `/reviews/${reviewKey}`), true);
+    pace.op();
   });
 }
 
@@ -185,7 +183,7 @@ function *extractLinemaps() {
       if (linemap) yield writeItem(reviewKey, linemap);
       pace.op();
     });
-  });
+  }, true);
 }
 
 function *extractFilemaps() {
@@ -196,7 +194,7 @@ function *extractFilemaps() {
       if (filemap) yield writeItem(reviewKey, filemap);
       pace.op();
     });
-  });
+  }, true);
 }
 
 function *extractUsers() {
@@ -211,28 +209,24 @@ function *extractUsers() {
       yield writeItem(newUserKey, mapAllUserKeys(user, `/users/${oldUserKey}`));
       pace.op();
     });
-  });
+  }, true);
 }
 
 let newCollection = true;
 
-function *writeCollection(key, writer) {
-  if (!writer) {
-    writer = key;
-    key = null;
-  }
-  if (!writer.name && key) Object.defineProperty(writer, 'name', {value: `writeCollection_${key}`});
+function *writeCollection(key, writer, top) {
+  if (!writer.name) Object.defineProperty(writer, 'name', {value: `writeCollection_${key}`});
   yield out.write(`${newCollection ? '' : ', '}${key ? JSON.stringify(key) + ': ' : ''}{`);
   newCollection = true;
   yield writer();
-  yield out.write('}');
+  yield out.write(`}${top ? '\n' : ''}`);
   newCollection = false;
 }
 
-function *writeItem(key, value) {
+function *writeItem(key, value, top) {
   const prefix = newCollection ? '' : ', ';
   newCollection = false;
-  yield out.write(`${prefix}${JSON.stringify(key)}: ${JSON.stringify(value)}`);
+  yield out.write(`${prefix}${JSON.stringify(key)}: ${JSON.stringify(value)}${top ? '\n' : ''}`);
 }
 
 function mapAllUserKeys(object, context) {
