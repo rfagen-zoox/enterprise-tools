@@ -569,6 +569,13 @@
             }
           }
         },
+        "participants": {
+          "$userKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
         "revisions": {
           "$revisionKey": {
             "commits": {
