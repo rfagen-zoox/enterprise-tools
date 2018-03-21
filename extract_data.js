@@ -158,7 +158,7 @@ function *extractReviews() {
       return !_.isEmpty(discussion.comments);
     });
     if (_.isEmpty(review.discussions)) delete review.discussions;
-    _.each(review.tracker, tracker => {
+    _.forEach(review.tracker, tracker => {
       tracker.participants = _.omit(tracker.participants, (participant, userKey) => {
         return !userMap[userKey] && participant.role === 'mentioned';
       });
