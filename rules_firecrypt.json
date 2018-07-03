@@ -453,6 +453,34 @@
                   }
                 }
               },
+              "required_pull_request_reviews": {
+                "dismissal_restrictions": {
+                  "users": {
+                    "$i": {
+                      "login": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      ".encrypt": {
+                        "few": true
+                      }
+                    }
+                  },
+                  "teams": {
+                    "$i": {
+                      "slug": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      ".encrypt": {
+                        "few": true
+                      }
+                    }
+                  }
+                }
+              },
               "restrictions": {
                 "users": {
                   "$i": {
