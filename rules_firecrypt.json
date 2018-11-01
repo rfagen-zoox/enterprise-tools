@@ -806,6 +806,15 @@
         }
       }
     },
+    "archivedReviews": {
+      "$reviewKey": {
+        "payload": {
+          ".encrypt": {
+            "value": "#"
+          }
+        }
+      }
+    },
     "subscriptions": {
       "$subscriptionId": {
         "organization": {
