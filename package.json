@@ -36,7 +36,7 @@
     "co": "^4.6.0",
     "command-line-args": "^4.0.3",
     "command-line-usage": "^4.0.0",
-    "event-stream": "^3.3.4",
+    "event-stream": "3.3.4",
     "firebase": "^2.4.2",
     "firecrypt": "^0.3.3",
     "lodash": "^3.10.1",
