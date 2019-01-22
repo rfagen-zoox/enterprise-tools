@@ -159,6 +159,28 @@
           }
         }
       },
+      "reconciliationRefresh": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$prKey": {
+          "owner": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repo": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#|#|."
+          }
+        }
+      },
       "memberships": {
         "ping": {
           ".encrypt": {
@@ -599,6 +621,23 @@
         },
         "participants": {
           "$userKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
+        "requestedTeams": {
+          "$nodeId": {
+            "slug": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
+            "name": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
             ".encrypt": {
               "few": true
             }
