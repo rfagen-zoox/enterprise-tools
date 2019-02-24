@@ -11,7 +11,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
-    "node": "8.x"
+    "node": "8.x || 10.x"
   },
   "repository": {
     "type": "git",
