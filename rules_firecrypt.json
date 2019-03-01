@@ -15,6 +15,11 @@
         ".encrypt": {
           "value": "#"
         }
+      },
+      "gheVersion": {
+        ".encrypt": {
+          "value": "#"
+        }
       }
     },
     "queues": {
