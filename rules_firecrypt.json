@@ -674,6 +674,11 @@
                 "value": "#"
               }
             },
+            "group": {
+              ".encrypt": {
+                "value": "#"
+              }
+            },
             "revisions": {
               "$revisionKey": {
                 "reviewers": {
