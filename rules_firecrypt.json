@@ -820,6 +820,16 @@
                     "value": "#"
                   }
                 },
+                "defaultMergeCommitMessage": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "defaultSquashCommitMessage": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
                 ".encrypt": {
                   "key": "#",
                   "few": true
