@@ -41,7 +41,7 @@
     "firecrypt": "^0.3.3",
     "lodash": "^3.10.1",
     "ms": "^0.7.1",
-    "nodefire": "^0.7.0",
+    "nodefire": "^3.0.0",
     "pace": "0.0.4",
     "promise-readable": "^0.4.2",
     "promise-writable": "^0.1.3",
