@@ -999,6 +999,23 @@
                 "few": true
               }
             }
+          },
+          "extraMentions": {
+            "$prKey": {
+              "owner": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              },
+              "repo": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              },
+              ".encrypt": {
+                "key": "#|#|."
+              }
+            }
           }
         },
         "notifications": {
