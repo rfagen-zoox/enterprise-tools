@@ -974,18 +974,6 @@
             }
           }
         },
-        "dashboardCache": {
-          "teams": {
-            ".encrypt": {
-              "value": "#"
-            }
-          },
-          "pushableRepos": {
-            ".encrypt": {
-              "value": "#"
-            }
-          }
-        },
         "stripe": {
           "trialEndTimestamps": {
             "$organization": {
