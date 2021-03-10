@@ -142,6 +142,43 @@
           }
         }
       },
+      "webhooks": {
+        "ping": {
+          ".encrypt": {
+            "key": ""
+          }
+        },
+        "$prKey": {
+          "owner": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "repo": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "url": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "description": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "pendingUsernames": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          ".encrypt": {
+            "key": "#|#|."
+          }
+        }
+      },
       "reconciliation": {
         "ping": {
           ".encrypt": {
@@ -648,6 +685,23 @@
             }
           }
         },
+        "lastWebhook": {
+          "description": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "pendingUsernames": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "error": {
+            ".encrypt": {
+              "value": "#"
+            }
+          }
+        },
         "revisions": {
           "$revisionKey": {
             "commits": {
@@ -830,6 +884,11 @@
                     "value": "#"
                   }
                 },
+                "webhook": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
                 ".encrypt": {
                   "key": "#",
                   "few": true
@@ -971,6 +1030,36 @@
               ".encrypt": {
                 "value": "#"
               }
+            }
+          }
+        },
+        "dashboardCache": {
+          "organizations": {
+            "$orgKey": {
+              "name": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              },
+              "avatarUrl": {
+                ".encrypt": {
+                  "value": "#"
+                }
+              },
+              ".encrypt": {
+                "key": "#",
+                "few": true
+              }
+            }
+          },
+          "teams": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "pushableRepos": {
+            ".encrypt": {
+              "value": "#"
             }
           }
         },
