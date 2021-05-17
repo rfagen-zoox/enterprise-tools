@@ -116,10 +116,10 @@ async function loadReviews() {
     const rdb = db.scope({reviewKey});
     await rdb.child('reviews/:reviewKey').update(review);
     const linemap = data.linemaps[reviewKey], filemap = data.filemaps[reviewKey];
-    await [
+    await Promise.all([
       linemap ? rdb.child('linemaps/:reviewKey').set(linemap) : Promise.resolve(),
       filemap ? rdb.child('filemaps/:reviewKey').set(filemap) : Promise.resolve()
-    ];
+    ]);
     const syncOptions = {
       userKey: args.admin, prNumber: review.core.pullRequestId,
       owner: _.toLower(review.core.ownerName), repo: _.toLower(review.core.repoName),
@@ -135,12 +135,12 @@ async function loadReviews() {
 
 async function loadUsers() {
   await forEachOfLimit(data.users, 25, async (user, userKey) => {
-    await [
+    await Promise.all([
       db.child('users/:userKey', {userKey}).update(user),
       db.child('queues/requests').push({
         action: 'fillUserProfile', userKey: args.admin, userId: userKey.replace(/github:/, '')
       })
-    ];
+    ]);
     pace.op();
   });
 }
