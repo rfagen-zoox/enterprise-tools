@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
     "extract_data": "./extract_data.js",
@@ -11,7 +11,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
-    "node": "8.x || 10.x || 12.x"
+    "node": ">=8"
   },
   "repository": {
     "type": "git",
