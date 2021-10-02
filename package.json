@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
     "extract_data": "./extract_data.js",

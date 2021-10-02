@@ -16,7 +16,7 @@ const usageSpec = [
   {header: 'Data readout tool',
     content:
       'Reads a given path from Firebase and prints the result, decrypting if necessary. ' +
-      'REVIEWABLE_FIREBASE, REVIEWABLE_FIREBASE_CREDENTIALS_FILE, and ' +
+      'REVIEWABLE_FIREBASE_URL, REVIEWABLE_FIREBASE_CREDENTIALS_FILE, and ' +
       'REVIEWABLE_ENCRYPTION_AES_KEY must be set.'
   },
   {header: 'Options', optionList: commandLineOptions}
