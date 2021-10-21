@@ -1,4 +1,4 @@
-name: Move pull requests into Being reviewed
+name: Move pull requests into Under Review
 
 on:
   pull_request:
@@ -11,5 +11,5 @@ jobs:
       - uses: alex-page/github-project-automation-plus@v0.8.1
         with:
           project: Task Central
-          column: Being reviewed
+          column: Under Review
           repo-token: ${{ secrets.ORGANIZATION_PROJECT_TOKEN }}
