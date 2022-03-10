@@ -1,6 +1,7 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "1.0.3",
+  "version": "1.1.0",
+  "type": "module",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
     "extract_data": "./extract_data.js",
@@ -11,7 +12,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
-    "node": ">=8"
+    "node": ">=16"
   },
   "repository": {
     "type": "git",
@@ -36,7 +37,7 @@
     "command-line-args": "^5.1.1",
     "command-line-usage": "^6.1.0",
     "event-stream": "^4.0.1",
-    "firebase": "^7.18.0",
+    "firebase-admin": "9.3.0",
     "firecrypt": "^2.0.9",
     "lodash": "^4.17.20",
     "ms": "^2.1.2",
@@ -45,10 +46,11 @@
     "promise-readable": "^6.0.0",
     "promise-writable": "^6.0.0",
     "request": "^2.88.2",
-    "serialized-lru-cache": "^3.1.0"
+    "serialized-lru-cache": "^3.1.0",
+    "stream-throttle": "^0.1.3"
   },
   "devDependencies": {
-    "eslint": "^7.7.0",
+    "eslint": "^8.10.0",
     "eslint-plugin-lodash": "^7.1.0"
   }
 }

@@ -1,23 +1,25 @@
 #!/usr/bin/env node
-'use strict';
 
-const _ = require('lodash');
-const commandLineArgs = require('command-line-args');
-const fs = require('fs');
-const forEachLimit = require('async/eachLimit');
-const forEachOfLimit = require('async/eachOfLimit');
-const forEachOf = require('async/eachOf');
-const getUsage = require('command-line-usage');
-const NodeFire = require('nodefire');
-const PromiseWritable = require('promise-writable');
+import _ from 'lodash';
+import * as fs from 'fs';
+import * as zlib from 'zlib';
+import commandLineArgs from 'command-line-args';
+import getUsage from 'command-line-usage';
+import {forEachLimit, forEachOfLimit, forEachOf} from 'async';
+import nodefireModule from 'nodefire';
+import {PromiseWritable} from 'promise-writable';
+import Pace from 'pace';
+
+const NodeFire = nodefireModule.default;
 
 const commandLineOptions = [
-  {name: 'repos', alias: 'r', typeLabel: '[underline]{repos.json}',
+  {name: 'repos', alias: 'r', typeLabel: '{underline repos.json}',
     description: 'A file with a JSON array of "owner/repo" repo names to extract.'},
-  {name: 'users', alias: 'u', typeLabel: '[underline]{users.json}',
-    description: 'A file with a JSON object of {"github:MMMM": "github:NNNN"} user id mappings.'},
-  {name: 'output', alias: 'o', typeLabel: '[underline]{data.json}',
-    description: 'Output JSON file for extracted data.'},
+  {name: 'users', alias: 'u', typeLabel: '{underline users.json}',
+    description: 'A file with a JSON object of \\{"github:MMMM": "github:NNNN"\\} ' +
+      'user id mappings. (Optional, defaults to identity mapping.)'},
+  {name: 'output', alias: 'o', typeLabel: '{underline data.ndjson}',
+    description: 'Output ndJSON file for extracted data.'},
   {name: 'help', alias: 'h', type: Boolean,
     description: 'Display these usage instructions.'}
 ];
@@ -36,58 +38,46 @@ if (args.help) {
   console.log(getUsage(usageSpec));
   process.exit(0);
 }
-for (const property of ['repos', 'users', 'output']) {
+for (const property of ['repos', 'output']) {
   if (!(property in args)) {
     console.log('Missing required option: ' + property + '.');
     process.exit(1);
   }
 }
 
-const userMap = JSON.parse(fs.readFileSync(args.users));
+const identityUserMap = !args.users;
+const userMap = args.users ? JSON.parse(fs.readFileSync(args.users)) : {};
 const repoNames =
   _(args.repos).thru(fs.readFileSync).thru(JSON.parse).map(_.toLower).uniq().value();
-const groupedRepoNames = _.groupBy(repoNames, name => name.split('/')[0]);
+const repoNamesSet = new Set(repoNames);
 const orgNames = _(repoNames).map(name => name.replace(/\/.*/, '')).uniq().value();
 
 const out = new PromiseWritable(fs.createWriteStream(args.output));
 out.stream.setMaxListeners(Infinity);
 
-const pace = require('pace')(1 + orgNames.length + repoNames.length + _.size(userMap));
+const pace = Pace(1 + 2 + orgNames.length + 2 * repoNames.length + _.size(userMap));
 
 let reviewKeys = [];
+const reversePullRequests = {};
 let ghostedUsers = [];
+const missingReviewKeys = [];
 
 async function extract() {
-  await out.write('{\n');
+  await import('./lib/loadFirebase.js');
+  await extractSystem();
   await extractOrganizations();
   await extractRepositories();
+  await extractRules();
   reviewKeys = _.uniq(reviewKeys);
   pace.total += 3 * reviewKeys.length;
-  await extractUsers();
   await extractReviews();
   await extractLinemaps();
   await extractFilemaps();
-  await out.write('}\n');
+  await extractUsers();
   await out.end();
   pace.op();
-
-  if (ghostedUsers.length) {
-    ghostedUsers = _.uniqBy(ghostedUsers, 'userKey');
-    console.log(`${ghostedUsers.length} users could not be mapped over:`);
-    const users = await forEachLimit(ghostedUsers, 5, async item => {
-      const user = await db.child('users/:userKey/core/public', {userKey: item.userKey}).get();
-      return {
-        username: user ? user.username : ` user ${item.userKey.replace(/github:/, '')}`,
-        context: item.context
-      };
-    });
-    console.log(
-      _(users)
-        .sortBy(user => _.toLower(user.username))
-        .map(user => `${user.username} @ ${user.context}`)
-        .join('\n')
-    );
-  }
+  logMissingReviews();
+  await logUnmappedUsers();
 }
 
 extract().then(() => {
@@ -100,126 +90,186 @@ extract().then(() => {
 });
 
 
+async function logUnmappedUsers() {
+  if (!ghostedUsers.length) return;
+  ghostedUsers = _.uniqBy(ghostedUsers, 'userKey');
+  console.log(`\n${ghostedUsers.length} users could not be mapped over:`);
+  const users = await forEachLimit(ghostedUsers, 5, async item => {
+    const user = await db.child('users/:userKey/core/public', {userKey: item.userKey}).get();
+    return {
+      username: user ? user.username : ` user ${item.userKey.replace(/github:/, '')}`,
+      context: item.context
+    };
+  });
+  console.log(
+    _(users)
+      .sortBy(user => _.toLower(user.username))
+      .map(user => `${user.username} @ ${user.context}`)
+      .join('\n')
+  );
+}
+
+function logMissingReviews() {
+  if (!missingReviewKeys.length) return;
+  console.log(`\n${missingReviewKeys.length} reviews could not be found:`);
+  console.log(_(missingReviewKeys).map(key => reversePullRequests[key]).sort().join('\n'));
+}
+
+async function extractSystem() {
+  const system = await db.get('system');
+  if (system.star && system.star !== '*' || system.bang && system.bang !== '!') {
+    throw new Error('Bad or missing REVIEWABLE_ENCRYPTION_AES_KEY');
+  }
+  await writeItem('system/oldestUsedClientBuild', system.oldestUsedClientBuild);
+  pace.op();
+  await writeItem('system/oldestUsedServerBuild', system.oldestUsedServerBuild);
+  pace.op();
+}
+
 async function extractOrganizations() {
   if (!orgNames.length) return;
-  await writeCollection('organizations', async () => {
-    await forEachLimit(orgNames, 5, async org => {
-      const organization = await db.child('organizations/:org', {org}).get();
-      if (organization) {
-        await writeItem(
-          NodeFire.escape(org), mapAllUserKeys(organization, `/organizations/${org}`));
-      }
-      pace.op();
-    });
-  }, true);
+  await forEachLimit(orgNames, 5, async org => {
+    const organization = await db.child('organizations/:org', {org}).get();
+    await writeItem(`organizations/${toKey(org)}`, organization);
+    pace.op();
+  });
 }
 
 async function extractRepositories() {
   if (!repoNames.length) return;
-  await writeCollection('repositories', async () => {
-    await forEachOf(groupedRepoNames, async (repoNamesGroup, orgName) => {
-      await writeCollection(NodeFire.escape(orgName), async () => {
-        await forEachLimit(repoNamesGroup, 10, async repoName => {
-          const [owner, repo] = repoName.split('/');
-          let repository = await db.child('repositories/:owner/:repo', {owner, repo}).get();
-          if (repository) {
-            repository.core = _.omit(
-              repository.core, 'id', 'connection', 'connector', 'reviewableBadge', 'errorCode',
-              'error', 'hookEvents'
-            );
-            repository = _.omit(repository, 'adminUserKeys', 'current', 'issues', 'protection');
-            reviewKeys = reviewKeys.concat(
-              _.values(repository.pullRequests), _.values(repository.oldPullRequests));
-            await writeItem(
-              NodeFire.escape(repo), mapAllUserKeys(repository, `/repositories/${owner}/${repo}`));
-          }
-          pace.op();
-        });
+  await forEachLimit(repoNames, 10, async repoName => {
+    const [owner, repo] = repoName.split('/');
+    let repository = await db.child('repositories/:owner/:repo', {owner, repo}).get();
+    if (repository) {
+      repository.core = _.omit(
+        repository.core, 'id', 'connection', 'connector', 'reviewableBadge', 'errorCode',
+        'error', 'hookEvents'
+      );
+      repository = _.omit(
+        repository, 'adminUserKeys', 'adminUserKeysLastUpdateTimestamp', 'pushUserKeys', 'current',
+        'issues', 'protection'
+      );
+      reviewKeys = reviewKeys.concat(
+        _.values(repository.pullRequests), _.values(repository.oldPullRequests));
+      _.forEach(repository.pullRequests, (reviewKey, prNumber) => {
+        reversePullRequests[reviewKey] = `${repoName}#${prNumber}`;
       });
-    });
-  }, true);
+      _.forEach(repository.oldPullRequests, (reviewKey, prNumber) => {
+        reversePullRequests[reviewKey] = `${repoName}#${prNumber}`;
+      });
+      await writeItem(`repositories/${toKey(owner)}/${toKey(repo)}`, repository);
+    }
+    pace.op();
+  });
+}
+
+async function extractRules() {
+  if (!repoNames.length) return;
+  await forEachLimit(repoNames, 10, async repoName => {
+    const [owner, repo] = repoName.split('/');
+    const rule = await db.child('rules/:owner/:repo', {owner, repo}).get();
+    await writeItem(`rules/${toKey(owner)}/${toKey(repo)}`, rule);
+    pace.op();
+  });
 }
 
 async function extractReviews() {
   if (!reviewKeys.length) return;
   await forEachLimit(reviewKeys, 25, async reviewKey => {
-    const review = await db.child('reviews/:reviewKey', {reviewKey}).get();
-    review.core = _.omit(review.core, 'lastSweepTimestamp');
-    review.discussions = _.pickBy(review.discussions, discussion => {
-      discussion.comments =
-        _.pickBy(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
-      return !_.isEmpty(discussion.comments);
-    });
-    if (_.isEmpty(review.discussions)) delete review.discussions;
-    _.forEach(review.tracker, tracker => {
-      tracker.participants = _.omitBy(tracker.participants, (participant, userKey) => {
-        return !userMap[userKey] && participant.role === 'mentioned';
-      });
-    });
-    delete review.gitHubComments;
-    review.sentiments = _.pickBy(review.sentiments, sentiment => {
-      sentiment.comments =
-        _.pickBy(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
-      return !_.isEmpty(sentiment.comments);
-    });
-    if (_.isEmpty(review.sentiments)) delete review.sentiments;
-    await writeItem(`reviews/${reviewKey}`, mapAllUserKeys(review, `/reviews/${reviewKey}`), true);
+    let review = await db.child('reviews/:reviewKey', {reviewKey}).get();
+    if (review) {
+      stripReview(review);
+      await writeItem(`reviews/${reviewKey}`, review);
+    } else {
+      const archive = await db.child('archivedReviews/:reviewKey', {reviewKey}).get();
+      if (archive) {
+        review = JSON.parse(zlib.gunzipSync(Buffer.from(archive.payload, 'base64')).toString());
+        stripReview(review);
+        if (identityUserMap) mapAllUserKeys(review);
+        archive.payload =
+          zlib.gzipSync(JSON.stringify(review), {level: zlib.constants.Z_BEST_COMPRESSION})
+            .toString('base64');
+        await writeItem(`archivedReviews/${reviewKey}`, archive);
+      } else {
+        missingReviewKeys.push(reviewKey);
+      }
+    }
     pace.op();
   });
 }
 
+function stripReview(review) {
+  review.core = _.omit(review.core, 'lastSweepTimestamp');
+  delete review.lastWebhook;
+  review.discussions = _.pickBy(review.discussions, discussion => {
+    discussion.comments =
+      _.pickBy(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+    return !_.isEmpty(discussion.comments);
+  });
+  if (_.isEmpty(review.discussions)) delete review.discussions;
+  _.forEach(review.tracker, tracker => {
+    tracker.participants = _.omitBy(tracker.participants, (participant, userKey) => {
+      return !identityUserMap && !userMap[userKey] && participant.role === 'mentioned';
+    });
+  });
+  delete review.gitHubComments;
+  review.sentiments = _.pickBy(review.sentiments, sentiment => {
+    sentiment.comments =
+      _.pickBy(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+    return !_.isEmpty(sentiment.comments);
+  });
+  if (_.isEmpty(review.sentiments)) delete review.sentiments;
+}
+
 async function extractLinemaps() {
   if (!reviewKeys.length) return;
-  await writeCollection('linemaps', async () => {
-    await forEachLimit(reviewKeys, 25, async reviewKey => {
-      const linemap = await db.child('linemaps/:reviewKey', {reviewKey}).get();
-      if (linemap) await writeItem(reviewKey, linemap);
-      pace.op();
-    });
-  }, true);
+  await forEachLimit(reviewKeys, 25, async reviewKey => {
+    const linemap = await db.child('linemaps/:reviewKey', {reviewKey}).get();
+    await writeItem(`linemaps/${reviewKey}`, linemap);
+    pace.op();
+  });
 }
 
 async function extractFilemaps() {
   if (!reviewKeys.length) return;
-  await writeCollection('filemaps', async () => {
-    await forEachLimit(reviewKeys, 25, async reviewKey => {
-      const filemap = await db.child('filemaps/:reviewKey', {reviewKey}).get();
-      if (filemap) await writeItem(reviewKey, filemap);
-      pace.op();
-    });
-  }, true);
+  await forEachLimit(reviewKeys, 25, async reviewKey => {
+    const filemap = await db.child('filemaps/:reviewKey', {reviewKey}).get();
+    await writeItem(`filemaps/${reviewKey}`, filemap);
+    pace.op();
+  });
 }
 
 async function extractUsers() {
   if (_.isEmpty(userMap)) return;
-  await writeCollection('users', async () => {
-    await forEachOfLimit(userMap, 25, async (newUserKey, oldUserKey) => {
-      let user = await db.child('users/:oldUserKey', {oldUserKey}).get();
-      user = _.omit(user, 'stripe', 'enrollments', 'index', 'notifications');
-      delete user.core;
-      if (user.settings) delete user.settings.dismissals;
-      if (user.state) user.state = _.pick(user.state, reviewKeys);
-      await writeItem(newUserKey, mapAllUserKeys(user, `/users/${oldUserKey}`));
-      pace.op();
-    });
-  }, true);
+  await forEachOfLimit(userMap, 25, async (newUserKey, oldUserKey) => {
+    let user = await db.child('users/:oldUserKey', {oldUserKey}).get();
+    user = _.omit(
+      user, 'lastSeatAllocationTimestamp', 'core', 'dashboardCache', 'stripe', 'enrollments',
+      'notifications'
+    );
+    if (user.index) {
+      delete user.index.subscriptions;
+      delete user.index.memberships;
+      if (user.index.extraMentions) {
+        user.index.extraMentions = _.pick(
+          user.index.extraMentions,
+          mention => repoNamesSet.has(`${mention.owner}/${mention.repo}`)
+        );
+        if (_.isEmpty(user.index.extraMentions)) delete user.index.extraMentions;
+      }
+      if (_.isEmpty(user.index)) delete user.index;
+    }
+    if (user.settings) delete user.settings.dismissals;
+    if (user.state) user.state = _.pick(user.state, reviewKeys);
+    await writeItem(`users/${newUserKey}`, user);
+    pace.op();
+  });
 }
 
-let newCollection = true;
-
-async function writeCollection(key, writer, top) {
-  if (!writer.name) Object.defineProperty(writer, 'name', {value: `writeCollection_${key}`});
-  await out.write(`${newCollection ? '' : ', '}${key ? JSON.stringify(key) + ': ' : ''}{`);
-  newCollection = true;
-  await writer();
-  await out.write(`}${top ? '\n' : ''}`);
-  newCollection = false;
-}
-
-async function writeItem(key, value, top) {
-  const prefix = newCollection ? '' : ', ';
-  newCollection = false;
-  await out.write(`${prefix}${JSON.stringify(key)}: ${JSON.stringify(value)}${top ? '\n' : ''}`);
+async function writeItem(key, value) {
+  if (value === undefined || value === null) return;
+  value = mapAllUserKeys(value, key);
+  await out.write(`[${JSON.stringify(key)}, ${JSON.stringify(value)}]\n`);
 }
 
 function mapAllUserKeys(object, context) {
@@ -244,8 +294,15 @@ function mapAllUserKeys(object, context) {
 }
 
 function mapUserKey(userKey, context) {
+  if (identityUserMap && !userMap[userKey]) {
+    userMap[userKey] = userKey;
+    pace.total += 1;
+  }
   const newUserKey = userMap[userKey] || 'github:1';
-  if (!newUserKey) throw new Error(`User not mapped and no ghost specified: ${userKey}`);
   if (newUserKey === 'github:1') ghostedUsers.push({userKey, context});
   return newUserKey;
+}
+
+function toKey(value) {
+  return NodeFire.escape(value);
 }

@@ -1,9 +1,8 @@
-#!/usr/bin/env node --max-old-space-size=8192
-'use strict';
+#!/usr/bin/env node
 
-const commandLineArgs = require('command-line-args');
-const getUsage = require('command-line-usage');
-const util = require('util');
+import commandLineArgs from 'command-line-args';
+import getUsage from 'command-line-usage';
+import {inspect} from 'util';
 
 const commandLineOptions = [
   {name: 'path', alias: 'p', type: String, defaultOption: true,
@@ -34,12 +33,12 @@ for (const property of ['path']) {
   }
 }
 
-require('./lib/loadFirebase.js');
 
 async function read() {
+  await import('./lib/loadFirebase.js');
   args.path = args.path.replace(/^\//, '');
   const value = await db.child(args.path).get();
-  console.log(util.inspect(value, {depth: null}));
+  console.log(inspect(value, {depth: null}));
 }
 
 read().then(() => {
