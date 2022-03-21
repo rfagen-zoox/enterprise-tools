@@ -2,13 +2,17 @@
 
 import _ from 'lodash';
 import * as fs from 'fs';
+import * as zlib from 'zlib';
 import es from 'event-stream';
 import commandLineArgs from 'command-line-args';
 import getUsage from 'command-line-usage';
 import nodefireModule from 'nodefire';
+import Hubkit from 'hubkit';
 import {PromiseReadable} from 'promise-readable';
 import Pace from 'pace';
 import {Throttle} from 'stream-throttle';
+import {uploadedFilesUrl, PLACEHOLDER_URL} from './lib/derivedInfo.js';
+import {fetchToken} from './lib/tokens.js';
 
 const NodeFire = nodefireModule.default;
 
@@ -43,11 +47,21 @@ for (const property of ['input', 'admin']) {
 }
 
 if (!process.env.REVIEWABLE_ENCRYPTION_AES_KEY) {
-  console.log('WARNING: not encrypting uploaded data as REVIEWABLE_ENCRYPTION_AES_KEY not given');
+  console.warn('WARNING: not encrypting uploaded data as REVIEWABLE_ENCRYPTION_AES_KEY not given');
+}
+
+let placeholderUrlRegex, gh;
+if (uploadedFilesUrl) {
+  placeholderUrlRegex = new RegExp(_.escapeRegExp(PLACEHOLDER_URL), 'g');
+} else {
+  console.warn(
+    'WARNING: no REVIEWABLE_UPLOADS_PROVIDER or REVIEWABLE_UPLOADED_FILES_URL specified, ' +
+    'so not rewriting uploaded image URLs in comments.');
 }
 
 async function load() {
   await import('./lib/loadFirebase.js');
+  if (uploadedFilesUrl) gh = new Hubkit({token: await fetchToken(args.admin)});
 
   let sizeRead = 0;
   let fatalError;
@@ -84,8 +98,21 @@ load().then(() => {
 });
 
 
-async function processLine([key, value]) {
+async function processLine([key, value, flags]) {
+  if (uploadedFilesUrl && !_.isEmpty(value)) {
+    if (_.startsWith(key, 'reviews/')) {
+      await tweakReview(value);
+    } else if (_.startsWith(key, 'archivedReviews/') && flags?.placeholdersPresent) {
+      const review = JSON.parse(zlib.gunzipSync(Buffer.from(value.payload, 'base64')).toString());
+      await tweakReview(review);
+      value.payload =
+        zlib.gzipSync(JSON.stringify(review), {level: zlib.constants.Z_BEST_COMPRESSION})
+          .toString('base64');
+    }
+  }
+
   if (!_.isEmpty(value)) await db.child(key).update(value);
+
   if (_.startsWith(key, 'reviews/')) {
     const syncOptions = {
       userKey: args.admin, prNumber: value.core.pullRequestId,
@@ -103,3 +130,23 @@ async function processLine([key, value]) {
   }
 }
 
+async function tweakReview(review) {
+  const fullRepoName = `${review.core.ownerName}/${review.core.repoName}`;
+  const promises = [];
+  _.forEach(review.discussions, discussion => {
+    _.forEach(discussion.comments, comment => {
+      if (!comment.markdownBody) return;
+      const body = comment.markdownBody.replace(placeholderUrlRegex, uploadedFilesUrl);
+      if (body === comment.markdownBody) return;
+      comment.markdownBody = body;
+      promises.push(
+        gh.request('POST /markdown', {body: {
+          text: body, mode: 'gfm', context: fullRepoName
+        }}).then(htmlBody => {
+          comment.htmlBody = htmlBody;
+        })
+      );
+    });
+  });
+  if (promises.length) await Promise.all(promises);
+}

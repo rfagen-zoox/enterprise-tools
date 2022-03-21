@@ -9,6 +9,7 @@ import {forEachLimit, forEachOfLimit, forEachOf} from 'async';
 import nodefireModule from 'nodefire';
 import {PromiseWritable} from 'promise-writable';
 import Pace from 'pace';
+import {uploadedFilesUrl, PLACEHOLDER_URL} from './lib/derivedInfo.js';
 
 const NodeFire = nodefireModule.default;
 
@@ -43,6 +44,15 @@ for (const property of ['repos', 'output']) {
     console.log('Missing required option: ' + property + '.');
     process.exit(1);
   }
+}
+
+let uploadedFilesUrlRegex;
+if (uploadedFilesUrl) {
+  uploadedFilesUrlRegex = new RegExp(_.escapeRegExp(uploadedFilesUrl), 'g');
+} else {
+  console.warn(
+    'WARNING: no REVIEWABLE_UPLOADS_PROVIDER or REVIEWABLE_UPLOADED_FILES_URL specified, ' +
+    'so not rewriting uploaded image URLs in comments.');
 }
 
 const identityUserMap = !args.users;
@@ -184,12 +194,12 @@ async function extractReviews() {
       const archive = await db.child('archivedReviews/:reviewKey', {reviewKey}).get();
       if (archive) {
         review = JSON.parse(zlib.gunzipSync(Buffer.from(archive.payload, 'base64')).toString());
-        stripReview(review);
+        const placeholdersPresent = stripReview(review);
         if (identityUserMap) mapAllUserKeys(review);
         archive.payload =
           zlib.gzipSync(JSON.stringify(review), {level: zlib.constants.Z_BEST_COMPRESSION})
             .toString('base64');
-        await writeItem(`archivedReviews/${reviewKey}`, archive);
+        await writeItem(`archivedReviews/${reviewKey}`, archive, {placeholdersPresent});
       } else {
         missingReviewKeys.push(reviewKey);
       }
@@ -199,11 +209,20 @@ async function extractReviews() {
 }
 
 function stripReview(review) {
+  let placeholderAdded = false;
   review.core = _.omit(review.core, 'lastSweepTimestamp');
   delete review.lastWebhook;
   review.discussions = _.pickBy(review.discussions, discussion => {
     discussion.comments =
       _.pickBy(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
+    if (uploadedFilesUrl) {
+      _.forEach(discussion.comments, comment => {
+        if (!comment.markdownBody) return;
+        const body = comment.markdownBody.replace(uploadedFilesUrlRegex, PLACEHOLDER_URL);
+        if (body !== comment.markdownBody) placeholderAdded = true;
+        comment.markdownBody = body;
+      });
+    }
     return !_.isEmpty(discussion.comments);
   });
   if (_.isEmpty(review.discussions)) delete review.discussions;
@@ -219,6 +238,7 @@ function stripReview(review) {
     return !_.isEmpty(sentiment.comments);
   });
   if (_.isEmpty(review.sentiments)) delete review.sentiments;
+  return placeholderAdded;
 }
 
 async function extractLinemaps() {
@@ -266,10 +286,15 @@ async function extractUsers() {
   });
 }
 
-async function writeItem(key, value) {
+async function writeItem(key, value, flags) {
   if (value === undefined || value === null) return;
   value = mapAllUserKeys(value, key);
-  await out.write(`[${JSON.stringify(key)}, ${JSON.stringify(value)}]\n`);
+  if (flags) {
+    await out.write(
+      `[${JSON.stringify(key)}, ${JSON.stringify(value)}, ${JSON.stringify(flags)}]\n`);
+  } else {
+    await out.write(`[${JSON.stringify(key)}, ${JSON.stringify(value)}]\n`);
+  }
 }
 
 function mapAllUserKeys(object, context) {
