@@ -2,12 +2,14 @@
 
 import _ from 'lodash';
 import * as fs from 'fs';
+import * as path from 'path';
 import * as zlib from 'zlib';
 import commandLineArgs from 'command-line-args';
 import getUsage from 'command-line-usage';
 import {forEachLimit, forEachOfLimit, forEachOf} from 'async';
 import nodefireModule from 'nodefire';
 import {PromiseWritable} from 'promise-writable';
+import {default as download} from 'download';
 import Pace from 'pace';
 import {uploadedFilesUrl, PLACEHOLDER_URL} from './lib/derivedInfo.js';
 
@@ -21,6 +23,8 @@ const commandLineOptions = [
       'user id mappings. (Optional, defaults to identity mapping.)'},
   {name: 'output', alias: 'o', typeLabel: '{underline data.ndjson}',
     description: 'Output ndJSON file for extracted data.'},
+  {name: 'download', alias: 'd', typeLabel: '{underline file/download/dir}',
+    description: 'Output directory for downloaded attachments'},
   {name: 'logging', alias: 'l', type: Boolean,
     description: 'Turn on low-level Firebase logging for debugging purposes'},
   {name: 'help', alias: 'h', type: Boolean,
@@ -50,7 +54,7 @@ for (const property of ['repos', 'output']) {
 
 let uploadedFilesUrlRegex;
 if (uploadedFilesUrl) {
-  uploadedFilesUrlRegex = new RegExp(_.escapeRegExp(uploadedFilesUrl), 'g');
+  uploadedFilesUrlRegex = new RegExp(`(${_.escapeRegExp(uploadedFilesUrl)})([^)]*)`, 'g');
 } else {
   console.warn(
     'WARNING: no REVIEWABLE_UPLOADS_PROVIDER or REVIEWABLE_UPLOADED_FILES_URL specified, ' +
@@ -77,6 +81,8 @@ let reviewKeys = [];
 const reversePullRequests = {};
 let ghostedUsers = [];
 const missingReviewKeys = [];
+const brokenFiles = [];
+const downloadedFiles = new Set();
 
 async function extract() {
   log('Connecting to Firebase');
@@ -93,8 +99,15 @@ async function extract() {
   await extractUsers();
   await out.end();
   pace.op();
+  console.log(
+    `Extracted ${orgNames.length} organizations, ${repoNames.length} repositories, ` +
+    `${reviewKeys.length} reviews, ${args.download ? '' : 'and '}${_.size(userMap)} users` + (
+      args.download ? `, and ${downloadedFiles.size - brokenFiles.length} files` : ''
+    )
+  );
   logMissingReviews();
   await logUnmappedUsers();
+  logBrokenFiles();
 }
 
 extract().then(() => {
@@ -130,6 +143,12 @@ function logMissingReviews() {
   if (!missingReviewKeys.length) return;
   console.log(`\n${missingReviewKeys.length} reviews could not be found:`);
   console.log(_(missingReviewKeys).map(key => reversePullRequests[key]).sort().join('\n'));
+}
+
+function logBrokenFiles() {
+  if (!args.download || !brokenFiles.length) return;
+  console.log(`\n${brokenFiles.length} files could not be downloaded:`);
+  console.log(brokenFiles.join('\n'));
 }
 
 async function extractSystem() {
@@ -220,17 +239,29 @@ async function extractReviews() {
   });
 }
 
-function stripReview(review) {
+async function stripReview(review) {
   let placeholderAdded = false;
   review.core = _.omit(review.core, 'lastSweepTimestamp');
   delete review.lastWebhook;
+  const downloadPromises = [];
   review.discussions = _.pickBy(review.discussions, discussion => {
     discussion.comments =
       _.pickBy(discussion.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
     if (uploadedFilesUrl) {
       _.forEach(discussion.comments, comment => {
         if (!comment.markdownBody) return;
-        const body = comment.markdownBody.replace(uploadedFilesUrlRegex, PLACEHOLDER_URL);
+        const body = comment.markdownBody.replace(uploadedFilesUrlRegex, (match, host, rest) => {
+          const url = host + rest;
+          if (args.download && !downloadedFiles.has(url)) {
+            downloadedFiles.add(url);
+            const dest = path.join(args.download, path.dirname(rest.slice(1)));
+            downloadPromises.push(download(url, dest).catch(e => {
+              if (args.logging) log(`File download failed:\n${url}\n${e}`);
+              brokenFiles.push(url);
+            }));
+          }
+          return PLACEHOLDER_URL + rest;
+        });
         if (body !== comment.markdownBody) placeholderAdded = true;
         comment.markdownBody = body;
       });
@@ -250,6 +281,7 @@ function stripReview(review) {
     return !_.isEmpty(sentiment.comments);
   });
   if (_.isEmpty(review.sentiments)) delete review.sentiments;
+  if (!_.isEmpty(downloadPromises)) await Promise.all(downloadPromises);
   return placeholderAdded;
 }
 
@@ -299,10 +331,6 @@ async function extractUsers() {
     await writeItem(`users/${newUserKey}`, user);
     pace.op();
   });
-}
-
-async function downloadFile(url) {
-
 }
 
 async function writeItem(key, value, flags) {
