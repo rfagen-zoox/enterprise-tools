@@ -286,6 +286,10 @@ async function extractUsers() {
   });
 }
 
+async function downloadFile(url) {
+
+}
+
 async function writeItem(key, value, flags) {
   if (value === undefined || value === null) return;
   value = mapAllUserKeys(value, key);

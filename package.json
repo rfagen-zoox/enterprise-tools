@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
@@ -9,6 +9,8 @@
     "read": "./read.js"
   },
   "scripts": {
+    "extract_data": "node ./extract_data.js",
+    "load_data": "node ./load_data.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
