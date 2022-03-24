@@ -21,6 +21,8 @@ const commandLineOptions = [
       'user id mappings. (Optional, defaults to identity mapping.)'},
   {name: 'output', alias: 'o', typeLabel: '{underline data.ndjson}',
     description: 'Output ndJSON file for extracted data.'},
+  {name: 'logging', alias: 'l', type: Boolean,
+    description: 'Turn on low-level Firebase logging for debugging purposes'},
   {name: 'help', alias: 'h', type: Boolean,
     description: 'Display these usage instructions.'}
 ];
@@ -55,6 +57,8 @@ if (uploadedFilesUrl) {
     'so not rewriting uploaded image URLs in comments.');
 }
 
+if (args.logging) NodeFire.enableFirebaseLogging(true);
+
 const identityUserMap = !args.users;
 const userMap = args.users ? JSON.parse(fs.readFileSync(args.users)) : {};
 const repoNames =
@@ -65,7 +69,9 @@ const orgNames = _(repoNames).map(name => name.replace(/\/.*/, '')).uniq().value
 const out = new PromiseWritable(fs.createWriteStream(args.output));
 out.stream.setMaxListeners(Infinity);
 
-const pace = Pace(1 + 2 + orgNames.length + 2 * repoNames.length + _.size(userMap));
+const pace = args.logging ?
+  {op() {}, total: 0} :
+  Pace(1 + 2 + orgNames.length + 2 * repoNames.length + _.size(userMap));
 
 let reviewKeys = [];
 const reversePullRequests = {};
@@ -73,6 +79,7 @@ let ghostedUsers = [];
 const missingReviewKeys = [];
 
 async function extract() {
+  log('Connecting to Firebase');
   await import('./lib/loadFirebase.js');
   await extractSystem();
   await extractOrganizations();
@@ -126,7 +133,8 @@ function logMissingReviews() {
 }
 
 async function extractSystem() {
-  const system = await db.get('system');
+  log('Extracting /system');
+  const system = await db.child('system').get();
   if (system.star && system.star !== '*' || system.bang && system.bang !== '!') {
     throw new Error('Bad or missing REVIEWABLE_ENCRYPTION_AES_KEY');
   }
@@ -138,6 +146,7 @@ async function extractSystem() {
 
 async function extractOrganizations() {
   if (!orgNames.length) return;
+  log('Extracting organizations');
   await forEachLimit(orgNames, 5, async org => {
     const organization = await db.child('organizations/:org', {org}).get();
     await writeItem(`organizations/${toKey(org)}`, organization);
@@ -147,6 +156,7 @@ async function extractOrganizations() {
 
 async function extractRepositories() {
   if (!repoNames.length) return;
+  log('Extracting repositories');
   await forEachLimit(repoNames, 10, async repoName => {
     const [owner, repo] = repoName.split('/');
     let repository = await db.child('repositories/:owner/:repo', {owner, repo}).get();
@@ -175,6 +185,7 @@ async function extractRepositories() {
 
 async function extractRules() {
   if (!repoNames.length) return;
+  log('Extracting rules');
   await forEachLimit(repoNames, 10, async repoName => {
     const [owner, repo] = repoName.split('/');
     const rule = await db.child('rules/:owner/:repo', {owner, repo}).get();
@@ -185,6 +196,7 @@ async function extractRules() {
 
 async function extractReviews() {
   if (!reviewKeys.length) return;
+  log('Extracting reviews');
   await forEachLimit(reviewKeys, 25, async reviewKey => {
     let review = await db.child('reviews/:reviewKey', {reviewKey}).get();
     if (review) {
@@ -243,6 +255,7 @@ function stripReview(review) {
 
 async function extractLinemaps() {
   if (!reviewKeys.length) return;
+  log('Extracting linemaps');
   await forEachLimit(reviewKeys, 25, async reviewKey => {
     const linemap = await db.child('linemaps/:reviewKey', {reviewKey}).get();
     await writeItem(`linemaps/${reviewKey}`, linemap);
@@ -252,6 +265,7 @@ async function extractLinemaps() {
 
 async function extractFilemaps() {
   if (!reviewKeys.length) return;
+  log('Extracting filemaps');
   await forEachLimit(reviewKeys, 25, async reviewKey => {
     const filemap = await db.child('filemaps/:reviewKey', {reviewKey}).get();
     await writeItem(`filemaps/${reviewKey}`, filemap);
@@ -261,6 +275,7 @@ async function extractFilemaps() {
 
 async function extractUsers() {
   if (_.isEmpty(userMap)) return;
+  log('Extracting users');
   await forEachOfLimit(userMap, 25, async (newUserKey, oldUserKey) => {
     let user = await db.child('users/:oldUserKey', {oldUserKey}).get();
     user = _.omit(
@@ -334,4 +349,8 @@ function mapUserKey(userKey, context) {
 
 function toKey(value) {
   return NodeFire.escape(value);
+}
+
+function log(...params) {
+  if (args.logging) console.log('---', ...params);
 }
