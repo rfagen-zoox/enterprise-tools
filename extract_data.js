@@ -225,7 +225,7 @@ async function extractReviews() {
       const archive = await db.child('archivedReviews/:reviewKey', {reviewKey}).get();
       if (archive) {
         review = JSON.parse(zlib.gunzipSync(Buffer.from(archive.payload, 'base64')).toString());
-        const placeholdersPresent = stripReview(review);
+        const placeholdersPresent = await stripReview(review);
         if (identityUserMap) mapAllUserKeys(review);
         archive.payload =
           zlib.gzipSync(JSON.stringify(review), {level: zlib.constants.Z_BEST_COMPRESSION})
