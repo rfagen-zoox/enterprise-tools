@@ -53,7 +53,9 @@ if (!process.env.REVIEWABLE_ENCRYPTION_AES_KEY) {
 let placeholderUrlRegex, gh;
 if (uploadedFilesUrl) {
   if (!process.env.REVIEWABLE_GITHUB_URL) {
-    console.log('ERROR: no REVIEWABLE_GITHUB_URL specified, unable to upload images');
+    console.log(
+      'ERROR: no REVIEWABLE_GITHUB_URL specified, unable to rewrite uploaded image URLs in comments'
+    );
     process.exit(1);
   }
   placeholderUrlRegex = new RegExp(_.escapeRegExp(PLACEHOLDER_URL), 'g');
@@ -65,11 +67,9 @@ if (uploadedFilesUrl) {
 
 async function load() {
   await import('./lib/loadFirebase.js');
-  if (uploadedFilesUrl) gh = new Hubkit({
-    host: process.env.REVIEWABLE_GITHUB_URL ?
-      process.env.REVIEWABLE_GITHUB_URL + '/api/v3' : 'https://api.github.com',
-    token: await fetchToken(args.admin)
-  });
+  if (uploadedFilesUrl) {
+    gh = new Hubkit({host: process.env.REVIEWABLE_GITHUB_URL, token: await fetchToken(args.admin)});
+  }
 
   let sizeRead = 0;
   let fatalError;
