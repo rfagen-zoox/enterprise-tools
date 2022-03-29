@@ -220,13 +220,13 @@ async function extractReviews() {
   await forEachLimit(reviewKeys, 25, async reviewKey => {
     let review = await db.child('reviews/:reviewKey', {reviewKey}).get();
     if (review) {
-      await stripReview(review);
+      await stripReview(review, reviewKey);
       await writeItem(`reviews/${reviewKey}`, review);
     } else {
       const archive = await db.child('archivedReviews/:reviewKey', {reviewKey}).get();
       if (archive) {
         review = JSON.parse(zlib.gunzipSync(Buffer.from(archive.payload, 'base64')).toString());
-        const placeholdersPresent = await stripReview(review);
+        const placeholdersPresent = await stripReview(review, reviewKey);
         if (identityUserMap) mapAllUserKeys(review);
         archive.payload =
           zlib.gzipSync(JSON.stringify(review), {level: zlib.constants.Z_BEST_COMPRESSION})
@@ -240,7 +240,7 @@ async function extractReviews() {
   });
 }
 
-async function stripReview(review) {
+async function stripReview(review, key) {
   let placeholderAdded = false;
   review.core = _.omit(review.core, 'lastSweepTimestamp');
   delete review.lastWebhook;
@@ -258,9 +258,7 @@ async function stripReview(review) {
             const dest = path.join(args.download, path.dirname(rest.slice(1)));
             downloadPromises.push(download(url, dest).catch(e => {
               if (args.logging) log(`File download failed:\n${url}\n${e}`);
-              const owner = review.core.ownerName ?? review.security.lowerCaseOwnerName;
-              const repo = review.core.repoName ?? review.security.lowerCaseRepoName;
-              brokenFiles.push(`${url} (${owner}/${repo} #${review.core.pullRequestId})`);
+              brokenFiles.push(`${url} (${reversePullRequests[key]})`);
             }));
           }
           return PLACEHOLDER_URL + rest;
