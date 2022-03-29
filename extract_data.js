@@ -54,7 +54,8 @@ for (const property of ['repos', 'output']) {
 
 let uploadedFilesUrlRegex;
 if (uploadedFilesUrl) {
-  uploadedFilesUrlRegex = new RegExp(`(${_.escapeRegExp(uploadedFilesUrl)})([^)]*)`, 'g');
+  uploadedFilesUrlRegex =
+    new RegExp(`(${_.escapeRegExp(uploadedFilesUrl)})((?:[^)]|\\(\\d+\\))*)`, 'g');
 } else {
   console.warn(
     'WARNING: no REVIEWABLE_UPLOADS_PROVIDER or REVIEWABLE_UPLOADED_FILES_URL specified, ' +
@@ -219,7 +220,7 @@ async function extractReviews() {
   await forEachLimit(reviewKeys, 25, async reviewKey => {
     let review = await db.child('reviews/:reviewKey', {reviewKey}).get();
     if (review) {
-      stripReview(review);
+      await stripReview(review);
       await writeItem(`reviews/${reviewKey}`, review);
     } else {
       const archive = await db.child('archivedReviews/:reviewKey', {reviewKey}).get();
@@ -257,7 +258,9 @@ async function stripReview(review) {
             const dest = path.join(args.download, path.dirname(rest.slice(1)));
             downloadPromises.push(download(url, dest).catch(e => {
               if (args.logging) log(`File download failed:\n${url}\n${e}`);
-              brokenFiles.push(url);
+              const owner = review.core.ownerName ?? review.security.lowerCaseOwnerName;
+              const repo = review.core.repoName ?? review.security.lowerCaseRepoName;
+              brokenFiles.push(`${url} (${owner}/${repo} #${review.core.pullRequestId})`);
             }));
           }
           return PLACEHOLDER_URL + rest;
