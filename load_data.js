@@ -67,9 +67,9 @@ if (uploadedFilesUrl) {
 
 async function load() {
   await import('./lib/loadFirebase.js');
-  if (uploadedFilesUrl) {
-    gh = new Hubkit({host: process.env.REVIEWABLE_GITHUB_URL, token: await fetchToken(args.admin)});
-  }
+  const host = process.env.REVIEWABLE_GITHUB_URL === 'https://github.com' ?
+    'https://api.github.com' : process.env.REVIEWABLE_GITHUB_URL + '/api/v3';
+  gh = new Hubkit({host, token: await fetchToken(args.admin)});
 
   let sizeRead = 0;
   let fatalError;
