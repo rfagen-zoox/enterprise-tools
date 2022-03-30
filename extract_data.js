@@ -55,7 +55,7 @@ for (const property of ['repos', 'output']) {
 let uploadedFilesUrlRegex;
 if (uploadedFilesUrl) {
   uploadedFilesUrlRegex =
-    new RegExp(`(${_.escapeRegExp(uploadedFilesUrl)})((?:[^)]|\\(\\d+\\))*)`, 'g');
+    new RegExp(`(${_.escapeRegExp(uploadedFilesUrl)})((?:[^())]|\\(\\d+\\))*)`, 'g');
 } else {
   console.warn(
     'WARNING: no REVIEWABLE_UPLOADS_PROVIDER or REVIEWABLE_UPLOADED_FILES_URL specified, ' +
