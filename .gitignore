@@ -3,3 +3,5 @@ attachments/
 data.ndjson
 fb.log
 repos.json
+orgs.json
+users.json
