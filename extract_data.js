@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as zlib from 'zlib';
 import commandLineArgs from 'command-line-args';
 import getUsage from 'command-line-usage';
-import {forEachLimit, forEachOfLimit, forEachOf} from 'async';
+import {forEachLimit, forEachOfLimit, forEachOf, mapLimit} from 'async';
 import nodefireModule from 'nodefire';
 import {PromiseWritable} from 'promise-writable';
 import {default as download} from 'download';
@@ -18,9 +18,14 @@ const NodeFire = nodefireModule.default;
 const commandLineOptions = [
   {name: 'repos', alias: 'r', typeLabel: '{underline repos.json}',
     description: 'A file with a JSON array of "owner/repo" repo names to extract.'},
+  {name: 'orgs', alias: 'g', typeLabel: '{underline orgs.json}',
+    description: 'A file with a JSON object of \\{"source-org": "target-org"\\} ' +
+      'organization mappings.  (Optional, defaults to identity mapping for any missing orgs.)'},
   {name: 'users', alias: 'u', typeLabel: '{underline users.json}',
     description: 'A file with a JSON object of \\{"github:MMMM": "github:NNNN"\\} ' +
       'user id mappings. (Optional, defaults to identity mapping.)'},
+  {name: 'merge', alias: 'm', type: Boolean,
+    description: 'Extract data in a format suitable for merging users into an existing instance'},
   {name: 'output', alias: 'o', typeLabel: '{underline data.ndjson}',
     description: 'Output ndJSON file for extracted data.'},
   {name: 'download', alias: 'd', typeLabel: '{underline file/download/dir}',
@@ -66,6 +71,8 @@ if (args.logging) NodeFire.enableFirebaseLogging(true);
 
 const identityUserMap = !args.users;
 const userMap = args.users ? JSON.parse(fs.readFileSync(args.users)) : {};
+const orgMap = args.orgs ?
+  _.mapKeys(JSON.parse(fs.readFileSync(args.orgs)), (value, key) => _.toLower(key)) : null;
 const repoNames =
   _(args.repos).thru(fs.readFileSync).thru(JSON.parse).map(_.toLower).uniq().value();
 const repoNamesSet = new Set(repoNames);
@@ -82,6 +89,7 @@ let reviewKeys = [];
 const reversePullRequests = {};
 let ghostedUsers = [];
 const missingReviewKeys = [];
+const missingOrgs = new Set();
 const brokenFiles = [];
 const downloadedFiles = new Set();
 
@@ -108,6 +116,7 @@ async function extract() {
     )
   );
   logMissingReviews();
+  logMissingOrgs();
   await logUnmappedUsers();
   logBrokenFiles();
 }
@@ -126,10 +135,10 @@ async function logUnmappedUsers() {
   if (!ghostedUsers.length) return;
   ghostedUsers = _.uniqBy(ghostedUsers, 'userKey');
   console.log(`\n${ghostedUsers.length} users could not be mapped over:`);
-  const users = await forEachLimit(ghostedUsers, 5, async item => {
+  const users = await mapLimit(ghostedUsers, 5, async item => {
     const user = await db.child('users/:userKey/core/public', {userKey: item.userKey}).get();
     return {
-      username: user ? user.username : ` user ${item.userKey.replace(/github:/, '')}`,
+      username: user ? user.username : `user ${item.userKey.replace(/github:/, '')}`,
       context: item.context
     };
   });
@@ -145,6 +154,12 @@ function logMissingReviews() {
   if (!missingReviewKeys.length) return;
   console.log(`\n${missingReviewKeys.length} reviews could not be found:`);
   console.log(_(missingReviewKeys).map(key => reversePullRequests[key]).sort().join('\n'));
+}
+
+function logMissingOrgs() {
+  if (!missingOrgs.size) return;
+  console.log(`\n${missingOrgs.size} organizations could not be mapped over:`);
+  console.log(_(missingOrgs).toArray().sort().join('\n'));
 }
 
 function logBrokenFiles() {
@@ -170,7 +185,17 @@ async function extractOrganizations() {
   log('Extracting organizations');
   await forEachLimit(orgNames, 5, async org => {
     const organization = await db.child('organizations/:org', {org}).get();
-    await writeItem(`organizations/${toKey(org)}`, organization);
+    if (organization) {
+      delete organization.owners;  // owners might be different in new instance
+      delete organization.coverage;  // subscriptions might be different too
+      if (!_.isEmpty(organization)) {
+        await writeItem(`organizations/${toKey(mapOrg(org))}`, organization);
+        if (organization.autoConnect) {
+          // Ensure that the organization update recurring task is in the queue.
+          await writeItem(`queues/memberships/${mapOrg(org)}/organization`, mapOrg(org));
+        }
+      }
+    }
     pace.op();
   });
 }
@@ -186,6 +211,9 @@ async function extractRepositories() {
         repository.core, 'id', 'connection', 'connector', 'reviewableBadge', 'errorCode',
         'error', 'hookEvents'
       );
+      if (repository.core.renamed) {
+        repository.core.renamed.ownerName = mapOrg(repository.core.renamed.ownerName);
+      }
       repository = _.omit(
         repository, 'adminUserKeys', 'adminUserKeysLastUpdateTimestamp', 'pushUserKeys', 'current',
         'issues', 'protection'
@@ -198,7 +226,7 @@ async function extractRepositories() {
       _.forEach(repository.oldPullRequests, (reviewKey, prNumber) => {
         reversePullRequests[reviewKey] = `${repoName}#${prNumber}`;
       });
-      await writeItem(`repositories/${toKey(owner)}/${toKey(repo)}`, repository);
+      await writeItem(`repositories/${toKey(mapOrg(owner))}/${toKey(repo)}`, repository);
     }
     pace.op();
   });
@@ -210,7 +238,7 @@ async function extractRules() {
   await forEachLimit(repoNames, 10, async repoName => {
     const [owner, repo] = repoName.split('/');
     const rule = await db.child('rules/:owner/:repo', {owner, repo}).get();
-    await writeItem(`rules/${toKey(owner)}/${toKey(repo)}`, rule);
+    await writeItem(`rules/${toKey(mapOrg(owner))}/${toKey(repo)}`, rule);
     pace.op();
   });
 }
@@ -228,7 +256,7 @@ async function extractReviews() {
       if (archive) {
         review = JSON.parse(zlib.gunzipSync(Buffer.from(archive.payload, 'base64')).toString());
         const placeholdersPresent = await stripReview(review, reviewKey);
-        if (identityUserMap) mapAllUserKeys(review);
+        mapAllUserKeys(review, `reviews/${reviewKey}`);
         archive.payload =
           zlib.gzipSync(JSON.stringify(review), {level: zlib.constants.Z_BEST_COMPRESSION})
             .toString('base64');
@@ -243,8 +271,17 @@ async function extractReviews() {
 
 async function stripReview(review, key) {
   let placeholderAdded = false;
-  review.core = _.omit(review.core, 'lastSweepTimestamp');
+
   delete review.lastWebhook;
+  delete review.requestedTeams;  // ids won't match in new instance; will resync
+  delete review.gitHubComments;
+
+  review.core = _.omit(review.core, 'lastSweepTimestamp', 'lastReconciliationTimestamp');
+  if (review.core.ownerName) review.core.ownerName = mapOrg(review.core.ownerName);
+  if (review.security) {
+    review.security.lowerCaseOwnerName = _.toLower(mapOrg(review.security.lowerCaseOwnerName));
+  }
+
   const downloadPromises = [];
   review.discussions = _.pickBy(review.discussions, discussion => {
     discussion.comments =
@@ -271,18 +308,20 @@ async function stripReview(review, key) {
     return !_.isEmpty(discussion.comments);
   });
   if (_.isEmpty(review.discussions)) delete review.discussions;
+
   _.forEach(review.tracker, tracker => {
     tracker.participants = _.omitBy(tracker.participants, (participant, userKey) => {
       return !identityUserMap && !userMap[userKey] && participant.role === 'mentioned';
     });
   });
-  delete review.gitHubComments;
+
   review.sentiments = _.pickBy(review.sentiments, sentiment => {
     sentiment.comments =
       _.pickBy(sentiment.comments, (comment, commentKey) => !/^gh-/.test(commentKey));
     return !_.isEmpty(sentiment.comments);
   });
   if (_.isEmpty(review.sentiments)) delete review.sentiments;
+
   if (!_.isEmpty(downloadPromises)) await Promise.all(downloadPromises);
   return placeholderAdded;
 }
@@ -323,24 +362,53 @@ async function extractUsers() {
   await forEachOfLimit(userMap, 25, async (newUserKey, oldUserKey) => {
     let user = await db.child('users/:oldUserKey', {oldUserKey}).get();
     user = _.omit(
-      user, 'lastSeatAllocationTimestamp', 'core', 'dashboardCache', 'stripe', 'enrollments',
-      'notifications'
+      user, 'lastUpdateTimestamp', 'lastSeatAllocationTimestamp', 'lastOwnershipsSyncTimestamp',
+      'enterpriseLicenseAdmin', 'core', 'dashboardCache', 'stripe', 'enrollments', 'notifications',
+      'settings.dismissals', 'index.subscriptions', 'index.memberships'
     );
-    if (user.index) {
-      delete user.index.subscriptions;
-      delete user.index.memberships;
-      if (user.index.extraMentions) {
-        user.index.extraMentions = _.pick(
-          user.index.extraMentions,
-          mention => repoNamesSet.has(`${mention.owner}/${mention.repo}`)
-        );
-        if (_.isEmpty(user.index.extraMentions)) delete user.index.extraMentions;
-      }
+    if (user.index?.extraMentions) {
+      user.index.extraMentions = _(user.index.extraMentions)
+        .pick(mention => repoNamesSet.has(`${mention.owner}/${mention.repo}`))
+        .mapKeys((value, key) => {
+          const parts = key.split('|');
+          parts[0] = mapOrg(parts[0]);
+          return parts.join('|');
+        })
+        .mapValues(mention => {
+          mention.owner = mapOrg(mention.owner);
+          return mention;
+        })
+        .value();
+      if (_.isEmpty(user.index.extraMentions)) delete user.index.extraMentions;
       if (_.isEmpty(user.index)) delete user.index;
     }
-    if (user.settings) delete user.settings.dismissals;
+    if (user.settings?.lastDashboardOrganization) {
+      user.settings.lastDashboardOrganization = mapOrg(user.settings.lastDashboardOrganization);
+    }
     if (user.state) user.state = _.pick(user.state, reviewKeys);
-    await writeItem(`users/${newUserKey}`, user);
+    if (_.isEmpty(user.state)) delete user.state;
+    if (args.merge) {
+      delete user.onboarding;  // too many props to merge efficiently
+      await forEachOf(user, async (value, key) => {
+        switch (key) {
+          case 'index':
+            await forEachOf(user.index.extraMentions, async (mention, mentionKey) => {
+              await writeItem(`users/${newUserKey}/index/extraMentions/${mentionKey}`, mention);
+            });
+            break;
+          case 'state':
+          case 'settings':
+            await forEachOf(user[key], async (subValue, subKey) => {
+              await writeItem(`users/${newUserKey}/${key}/${subKey}`, subValue);
+            })
+            break;
+          default:
+            await writeItem(`users/${newUserKey}/${key}`, value);
+        }
+      });
+    } else {
+      await writeItem(`users/${newUserKey}`, user);
+    }
     pace.op();
   });
 }
@@ -385,6 +453,14 @@ function mapUserKey(userKey, context) {
   const newUserKey = userMap[userKey] || 'github:1';
   if (newUserKey === 'github:1') ghostedUsers.push({userKey, context});
   return newUserKey;
+}
+
+function mapOrg(org) {
+  if (!org) throw new Error('internal error: missing org argument');
+  const mappedOrg = orgMap?.[_.toLower(org)];
+  if (mappedOrg) return mappedOrg;
+  if (orgMap) missingOrgs.add(_.toLower(org));
+  return org;
 }
 
 function toKey(value) {
