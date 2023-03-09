@@ -88,6 +88,8 @@ const pace = args.logging ?
 let reviewKeys = [];
 const reversePullRequests = {};
 let ghostedUsers = [];
+const unknownUsers = [];
+
 const missingReviewKeys = [];
 const missingOrgs = new Set();
 const brokenFiles = [];
@@ -118,6 +120,7 @@ async function extract() {
   logMissingReviews();
   logMissingOrgs();
   await logUnmappedUsers();
+  logUnknownUsers();
   logBrokenFiles();
 }
 
@@ -148,6 +151,12 @@ async function logUnmappedUsers() {
       .map(user => `${user.username} @ ${user.context}`)
       .join('\n')
   );
+}
+
+function logUnknownUsers() {
+  if (!unknownUsers.length) return;
+  console.log(`\n${unknownUsers.length} users from map have no record in Reviewable:`);
+  console.log(_(unknownUsers).map(userKey => userKey.replace('github:', '')).join(', '));
 }
 
 function logMissingReviews() {
@@ -361,6 +370,10 @@ async function extractUsers() {
   log('Extracting users');
   await forEachOfLimit(userMap, 25, async (newUserKey, oldUserKey) => {
     let user = await db.child('users/:oldUserKey', {oldUserKey}).get();
+    if (!user) {
+      unknownUsers.push(oldUserKey);
+      return;
+    }
     user = _.omit(
       user, 'lastUpdateTimestamp', 'lastSeatAllocationTimestamp', 'lastOwnershipsSyncTimestamp',
       'enterpriseLicenseAdmin', 'core', 'dashboardCache', 'stripe', 'enrollments', 'notifications',
