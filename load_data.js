@@ -119,7 +119,15 @@ async function processLine([key, value, flags]) {
     }
   }
 
-  if (!_.isEmpty(value)) await db.child(key).update(value);
+  if (!_.isEmpty(value)) {
+    if (_.startsWith(key, 'system/oldestUsed')) {
+      await db.child(key).transaction(oldValue => {
+        return oldValue ? Math.min(oldValue, value) : value;
+      });
+    } else {
+      await db.child(key).update(value);
+    }
+  }
 
   if (_.startsWith(key, 'reviews/')) {
     const syncOptions = {
