@@ -1,6 +1,6 @@
 {
   "name": "reviewable-enterprise-tools",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "type": "module",
   "description": "Admin tools for Reviewable Enterprise",
   "bin": {
