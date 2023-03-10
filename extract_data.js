@@ -401,24 +401,14 @@ async function extractUsers() {
     if (user.state) user.state = _.pick(user.state, reviewKeys);
     if (_.isEmpty(user.state)) delete user.state;
     if (args.merge) {
-      delete user.onboarding;  // too many props to merge efficiently
-      await forEachOf(user, async (value, key) => {
-        switch (key) {
-          case 'index':
-            await forEachOf(user.index.extraMentions, async (mention, mentionKey) => {
-              await writeItem(`users/${newUserKey}/index/extraMentions/${mentionKey}`, mention);
-            });
-            break;
-          case 'state':
-          case 'settings':
-            await forEachOf(user[key], async (subValue, subKey) => {
-              await writeItem(`users/${newUserKey}/${key}/${subKey}`, subValue);
-            })
-            break;
-          default:
-            await writeItem(`users/${newUserKey}/${key}`, value);
-        }
+      await writeItem(
+        `users/${newUserKey}`, _.omit(user, 'onboarding', 'settings', 'state', 'index'));
+      await forEachOf(['onboarding', 'settings', 'state'], async key => {
+        if (user[key]) await writeItem(`users/${newUserKey}/${key}`, user[key]);
       });
+      if (user.index?.extraMentions) {
+        await writeItem(`users/${newUserKey}/index/extraMentions`, user.index.extraMentions);
+      }
     } else {
       await writeItem(`users/${newUserKey}`, user);
     }
