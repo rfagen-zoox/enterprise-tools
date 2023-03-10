@@ -405,7 +405,7 @@ async function extractUsers() {
       const bareUser = _.omit(user, 'onboarding', 'settings', 'state', 'index');
       if (!_.isEmpty(bareUser)) await writeItem(`users/${newUserKey}`, bareUser);
       await forEachOf(['onboarding', 'settings', 'state'], async key => {
-        if (user[key]) await writeItem(`users/${newUserKey}/${key}`, user[key]);
+        if (!_.isEmpty(user[key])) await writeItem(`users/${newUserKey}/${key}`, user[key]);
       });
       if (user.index?.extraMentions) {
         await writeItem(`users/${newUserKey}/index/extraMentions`, user.index.extraMentions);
