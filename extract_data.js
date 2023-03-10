@@ -369,6 +369,7 @@ async function extractUsers() {
   if (_.isEmpty(userMap)) return;
   log('Extracting users');
   await forEachOfLimit(userMap, 25, async (newUserKey, oldUserKey) => {
+    if (newUserKey === 'github:1') return;
     let user = await db.child('users/:oldUserKey', {oldUserKey}).get();
     if (!user) {
       unknownUsers.push(oldUserKey);
