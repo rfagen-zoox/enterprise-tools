@@ -401,8 +401,8 @@ async function extractUsers() {
     if (user.state) user.state = _.pick(user.state, reviewKeys);
     if (_.isEmpty(user.state)) delete user.state;
     if (args.merge) {
-      await writeItem(
-        `users/${newUserKey}`, _.omit(user, 'onboarding', 'settings', 'state', 'index'));
+      const bareUser = _.omit(user, 'onboarding', 'settings', 'state', 'index');
+      if (!_.isEmpty(bareUser)) await writeItem(`users/${newUserKey}`, bareUser);
       await forEachOf(['onboarding', 'settings', 'state'], async key => {
         if (user[key]) await writeItem(`users/${newUserKey}/${key}`, user[key]);
       });
