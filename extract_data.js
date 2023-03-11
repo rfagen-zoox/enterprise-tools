@@ -455,7 +455,7 @@ function mapUserKey(userKey, context) {
     pace.total += 1;
   }
   const newUserKey = userMap[userKey] || 'github:1';
-  if (!userMap[userKey]) ghostedUsers.push({userKey, context});
+  if (!userMap[userKey] && userKey !== 'github:1') ghostedUsers.push({userKey, context});
   return newUserKey;
 }
 
