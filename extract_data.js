@@ -434,6 +434,9 @@ function mapAllUserKeys(object, context) {
     if (/^github:\d+(\s*,\s*github:\d+)*$/.test(object)) {
       return _(object).split(/\s*,\s*/).map(mapUserKey).uniq().join(',');
     }
+    if (/\|github:\d+$/.test(object)) {
+      return object.replace(/\|github:\d+$/, match => `|${mapUserKey(match.slice(1))}`);
+    }
   } else if (_.isObject(object)) {
     for (const key in object) {
       const value = mapAllUserKeys(object[key], context + '/' + key);
