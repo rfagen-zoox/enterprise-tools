@@ -167,7 +167,7 @@ function logMissingReviews() {
 
 function logMissingOrgs() {
   if (!missingOrgs.size) return;
-  console.log(`\n${missingOrgs.size} organizations could not be mapped over:`);
+  console.log(`\n${missingOrgs.size} owners could not be mapped over:`);
   console.log(_(missingOrgs).toArray().sort().join('\n'));
 }
 
