@@ -120,12 +120,17 @@ async function processLine([key, value, flags]) {
   }
 
   if (!_.isEmpty(value)) {
-    if (_.startsWith(key, 'system/oldestUsed')) {
-      await db.child(key).transaction(oldValue => {
-        return oldValue ? Math.min(oldValue, value) : value;
-      });
-    } else {
-      await db.child(key).update(value);
+    try {
+      if (_.startsWith(key, 'system/oldestUsed')) {
+        await db.child(key).transaction(oldValue => {
+          return oldValue ? Math.min(oldValue, value) : value;
+        });
+      } else {
+        await db.child(key).update(value);
+      }
+    } catch (e) {
+      e.message + ` (at ${key})`;
+      throw e;
     }
   }
 
