@@ -201,7 +201,7 @@ async function extractOrganizations() {
         await writeItem(`organizations/${toKey(mapOrg(org))}`, organization);
         if (organization.autoConnect) {
           // Ensure that the organization update recurring task is in the queue.
-          await writeItem(`queues/memberships/${mapOrg(org)}/organization`, mapOrg(org));
+          await writeItem(`queues/memberships/${mapOrg(org)}`, {organization: mapOrg(org)});
         }
       }
     }
