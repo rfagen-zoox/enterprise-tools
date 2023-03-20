@@ -235,7 +235,9 @@ async function extractRepositories() {
       _.forEach(repository.oldPullRequests, (reviewKey, prNumber) => {
         reversePullRequests[reviewKey] = `${repoName}#${prNumber}`;
       });
-      await writeItem(`repositories/${toKey(mapOrg(owner))}/${toKey(repo)}`, repository);
+      if (!_.isEmpty(repository)) {
+        await writeItem(`repositories/${toKey(mapOrg(owner))}/${toKey(repo)}`, repository);
+      }
     }
     pace.op();
   });
