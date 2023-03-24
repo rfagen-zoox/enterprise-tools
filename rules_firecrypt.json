@@ -22,6 +22,14 @@
         }
       }
     },
+    "lastExecutionTimestampByContainerName": {
+      "$containerName": {
+        ".encrypt": {
+          "key": "#",
+          "few": true
+        }
+      }
+    },
     "queues": {
       "github": {
         "$eventKey": {
@@ -169,7 +177,17 @@
               "value": "#"
             }
           },
+          "authorUsername": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
           "pendingUsernames": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "unreadUsernames": {
             ".encrypt": {
               "value": "#"
             }
@@ -233,13 +251,6 @@
           "organization": {
             ".encrypt": {
               "value": "#"
-            }
-          },
-          "subscribers": {
-            "$subscriptionKey": {
-              ".encrypt": {
-                "few": true
-              }
             }
           },
           ".encrypt": {
@@ -440,6 +451,13 @@
             }
           }
         },
+        "owners": {
+          "$userKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
+        },
         ".encrypt": {
           "key": "#"
         }
@@ -466,6 +484,27 @@
                 ".encrypt": {
                   "value": "#"
                 }
+              },
+              "coverage": {
+                "urlTemplate": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "headers": {
+                  "$headerName": {
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "permissions": {
+            "$userKey": {
+              ".encrypt": {
+                "few": true
               }
             }
           },
@@ -696,6 +735,11 @@
               "value": "#"
             }
           },
+          "unreadUsernames": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
           "error": {
             ".encrypt": {
               "value": "#"
@@ -707,6 +751,23 @@
             "commits": {
               "$arbitraryKey": {
                 "title": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            "coAuthors": {
+              "$arbitraryKey": {
+                "name": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "email": {
                   ".encrypt": {
                     "value": "#"
                   }
@@ -783,6 +844,28 @@
                 "htmlBody": {
                   ".encrypt": {
                     "value": "#"
+                  }
+                },
+                "codeblocks": {
+                  "$codeblockKey": {
+                    "originalText": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    "suggestedText": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    "language": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    ".encrypt": {
+                      "few": true
+                    }
                   }
                 },
                 ".encrypt": {
@@ -960,6 +1043,13 @@
               "few": true
             }
           }
+        },
+        "guestSeats": {
+          "$userKey": {
+            ".encrypt": {
+              "few": true
+            }
+          }
         }
       }
     },
@@ -1132,6 +1222,16 @@
               "value": "#"
             }
           },
+          "lineLinkEditor": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
+          "lineLinkWorkspacePath": {
+            ".encrypt": {
+              "value": "#"
+            }
+          },
           "keyBindingsUrl": {
             ".encrypt": {
               "value": "#"
@@ -1178,6 +1278,50 @@
                     }
                   }
                 },
+                "codeblocks": {
+                  "$codeblockKey": {
+                    "originalText": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    "suggestedText": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    "language": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                },
+                "deletedCodeblocks": {
+                  "$deletionKey": {
+                    "originalText": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    "suggestedText": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    "language": {
+                      ".encrypt": {
+                        "value": "#"
+                      }
+                    },
+                    ".encrypt": {
+                      "few": true
+                    }
+                  }
+                },
                 ".encrypt": {
                   "few": true
                 }
@@ -1201,6 +1345,50 @@
                       ".encrypt": {
                         "few": true,
                         "value": "#"
+                      }
+                    }
+                  },
+                  "codeblocks": {
+                    "$codeblockKey": {
+                      "originalText": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      "suggestedText": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      "language": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      ".encrypt": {
+                        "few": true
+                      }
+                    }
+                  },
+                  "deletedCodeblocks": {
+                    "$deletionKey": {
+                      "originalText": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      "suggestedText": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      "language": {
+                        ".encrypt": {
+                          "value": "#"
+                        }
+                      },
+                      ".encrypt": {
+                        "few": true
                       }
                     }
                   },
