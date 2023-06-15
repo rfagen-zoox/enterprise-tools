@@ -258,6 +258,15 @@
           }
         }
       },
+      "analytics": {
+        "$eventKey": {
+          "content": {
+            ".encrypt": {
+              "value": "#"
+            }
+          }
+        }
+      },
       "requests": {
         "ping": {
           ".encrypt": {
@@ -980,6 +989,55 @@
             },
             ".encrypt": {
               "few": true
+            }
+          }
+        },
+        "mergeQueueEntry": {
+          "status": {
+            "counts": {
+              "$state": {
+                ".encrypt": {
+                  "few": true
+                }
+              }
+            },
+            "services": {
+              "$context": {
+                "context": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "description": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "url": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "defaultMergeCommitMessage": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "defaultSquashCommitMessage": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                "webhook": {
+                  ".encrypt": {
+                    "value": "#"
+                  }
+                },
+                ".encrypt": {
+                  "key": "#",
+                  "few": true
+                }
+              }
             }
           }
         }
