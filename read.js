@@ -2,6 +2,7 @@
 
 import commandLineArgs from 'command-line-args';
 import getUsage from 'command-line-usage';
+import zlib from 'zlib';
 import {inspect} from 'util';
 
 const commandLineOptions = [
@@ -39,7 +40,21 @@ async function read() {
   args.path = args.path.replace(/^\//, '');
   const value = await db.child(args.path).get();
   // console.log(inspect(value, {depth: null}));
-  console.log(JSON.stringify(value, null, 2));
+  if (!value){
+    if (args.path.startsWith('reviews')) {
+      args.path = args.path.replace(/^reviews/, 'archivedReviews')
+      const encrypted_value = await db.child(args.path).get();
+      const decrypted_value = zlib.gunzipSync(Buffer.from(encrypted_value.payload, 'base64'))
+        .toString()
+        .replace(/^"/, '')
+        .replace('\\\"', '*****')
+        .replace('\"', '"')
+        .replace('*****', '\\\"');
+      console.log(JSON.stringify(decrypted_value, null, 2));
+    }
+  } else {
+    console.log(JSON.stringify(value, null, 2));
+  }
 }
 
 read().then(() => {
