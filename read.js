@@ -44,12 +44,7 @@ async function read() {
     if (args.path.startsWith('reviews')) {
       args.path = args.path.replace(/^reviews/, 'archivedReviews')
       const encrypted_value = await db.child(args.path).get();
-      const decrypted_value = zlib.gunzipSync(Buffer.from(encrypted_value.payload, 'base64'))
-        .toString()
-        .replace(/^"/, '')
-        .replace('\\\"', '*****')
-        .replace('\"', '"')
-        .replace('*****', '\\\"');
+      const decrypted_value = JSON.parse(zlib.gunzipSync(Buffer.from(encrypted_value.payload, 'base64')));
       console.log(JSON.stringify(decrypted_value, null, 2));
     }
   } else {
